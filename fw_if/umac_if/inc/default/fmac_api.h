@@ -1016,8 +1016,8 @@ enum nrf_wifi_status nrf_wifi_fmac_set_ps_exit_strategy(
  *       transmitted/aborted.
  *     - The driver cleans up the frame buffer(s) after receiving this event.
  *
- *@retval      WIFI_NRF_STATUS_SUCCESS On success
- *@retval      WIFI_NRF_STATUS_FAIL On failure
+ *@retval      NRF_WIFI_STATUS_SUCCESS On success
+ *@retval      NRF_WIFI_STATUS_FAIL On failure
  */
 enum nrf_wifi_status nrf_wifi_fmac_start_rawpkt_xmit(void *dev_ctx,
 						     unsigned char if_idx,
@@ -1031,8 +1031,8 @@ enum nrf_wifi_status nrf_wifi_fmac_start_rawpkt_xmit(void *dev_ctx,
  * raw packet transmission mode is enabled, the packet will be allowed to be
  * transmitted. If the mode is disabled, the packet will be silently dropped.
  *
- *@retval      WIFI_NRF_STATUS_SUCCESS On success
- *@retval      WIFI_NRF_STATUS_FAIL On failure
+ *@retval      NRF_WIFI_STATUS_SUCCESS On success
+ *@retval      NRF_WIFI_STATUS_FAIL On failure
  */
 bool nrf_wifi_util_is_rawpktmode_enabled(struct nrf_wifi_fmac_vif_ctx *vif);
 #endif /* NRF70_RAW_DATA_TX */
@@ -1046,8 +1046,8 @@ bool nrf_wifi_util_is_rawpktmode_enabled(struct nrf_wifi_fmac_vif_ctx *vif);
  * the mode will be configured to the lower layers, else an error value
  * will be flagged.
  *
- *@retval      WIFI_NRF_STATUS_SUCCESS On success
- *@retval      WIFI_NRF_STATUS_FAIL On failure
+ *@retval      NRF_WIFI_STATUS_SUCCESS On success
+ *@retval      NRF_WIFI_STATUS_FAIL On failure
  */
 enum nrf_wifi_status nrf_wifi_check_mode_validity(unsigned char mode);
 

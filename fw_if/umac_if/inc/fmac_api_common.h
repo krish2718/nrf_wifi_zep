@@ -318,8 +318,8 @@ int nrf_wifi_phy_rf_params_init(struct nrf_wifi_phy_rf_params *prf,
  * This function is used to send a command
  *         to RPU to set mode of operation
  *
- * @retval      WIFI_NRF_STATUS_SUCCESS On success
- * @retval      WIFI_NRF_STATUS_FAIL On failure
+ * @retval      NRF_WIFI_STATUS_SUCCESS On success
+ * @retval      NRF_WIFI_STATUS_FAIL On failure
  */
 enum nrf_wifi_status nrf_wifi_fmac_set_mode(void *dev_ctx,
 					    unsigned char if_idx,
@@ -336,8 +336,8 @@ enum nrf_wifi_status nrf_wifi_fmac_set_mode(void *dev_ctx,
  * This function is used to send a command
  *         to RPU to set current channel of operation
  *
- * @retval      WIFI_NRF_STATUS_SUCCESS On success
- * @retval      WIFI_NRF_STATUS_FAIL On failure
+ * @retval      NRF_WIFI_STATUS_SUCCESS On success
+ * @retval      NRF_WIFI_STATUS_FAIL On failure
  */
 enum nrf_wifi_status nrf_wifi_fmac_set_channel(void *dev_ctx,
 					       unsigned char if_idx,
