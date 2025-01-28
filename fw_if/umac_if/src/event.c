@@ -150,7 +150,7 @@ static enum nrf_wifi_status umac_event_ctrl_process(struct nrf_wifi_fmac_dev_ctx
 #elif NRF70_RADIO_TEST
 	struct nrf_wifi_reg *get_reg_event = NULL;
 	struct nrf_wifi_event_regulatory_change *reg_change_event = NULL;
-#elif NRF70_OFFLOADED_RAW_TX
+#elif defined(NRF70_OFFLOADED_RAW_TX)
 	struct nrf_wifi_off_raw_tx_fmac_dev_ctx *def_dev_ctx_off_raw_tx = NULL;
 	struct nrf_wifi_reg *get_reg_event = NULL;
 #endif /* !NRF70_RADIO_TEST && !NRF70_OFFLOADED_RAW_TX */
@@ -987,7 +987,7 @@ static enum nrf_wifi_status umac_process_sys_events(struct nrf_wifi_fmac_dev_ctx
 #ifdef NRF70_RADIO_TEST
 	struct nrf_wifi_fmac_dev_ctx_rt *def_dev_ctx_rt;
 	struct nrf_wifi_umac_event_err_status *umac_status;
-#elif NRF70_OFFLOADED_RAW_TX
+#elif defined(NRF70_OFFLOADED_RAW_TX)
 	struct nrf_wifi_off_raw_tx_fmac_dev_ctx *def_dev_ctx_off_raw_tx;
 	struct nrf_wifi_umac_event_err_status *umac_status;
 #else
@@ -1000,7 +1000,7 @@ static enum nrf_wifi_status umac_process_sys_events(struct nrf_wifi_fmac_dev_ctx
 
 #ifdef NRF70_RADIO_TEST
 	def_dev_ctx_rt = wifi_dev_priv(fmac_dev_ctx);
-#elif NRF70_OFFLOADED_RAW_TX
+#elif defined(NRF70_OFFLOADED_RAW_TX)
 	def_dev_ctx_off_raw_tx = wifi_dev_priv(fmac_dev_ctx);
 #else
 	def_dev_ctx = wifi_dev_priv(fmac_dev_ctx);

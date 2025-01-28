@@ -411,7 +411,7 @@ enum nrf_wifi_status nrf_wifi_fmac_stats_get(struct nrf_wifi_fmac_dev_ctx *fmac_
 
 	#ifdef NRF70_RADIO_TEST
 		stats_type = RPU_STATS_TYPE_PHY;
-	#elif NRF70_OFFLOADED_RAW_TX
+	#elif defined(NRF70_OFFLOADED_RAW_TX)
 		stats_type = RPU_STATS_TYPE_OFFLOADED_RAW_TX;
 	#else
 		stats_type = RPU_STATS_TYPE_ALL;
