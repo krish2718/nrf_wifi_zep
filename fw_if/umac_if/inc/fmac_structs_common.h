@@ -18,7 +18,6 @@
 
 #include "osal_api.h"
 #include "host_rpu_umac_if.h"
-#include "fmac_structs.h"
 
 #define NRF_WIFI_FW_CHUNK_ID_STR_LEN 16
 
