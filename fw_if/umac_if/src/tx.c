@@ -1057,10 +1057,10 @@ enum nrf_wifi_fmac_tx_status tx_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_c
 	def_dev_ctx = wifi_dev_priv(fmac_dev_ctx);
 	def_priv = wifi_fmac_priv(fpriv);
 
-	status = tx_enqueue(fmac_dev_ctx,
-			    nbuf,
-			    ac,
-			    peer_id);
+	status = (enum nrf_wifi_fmac_tx_status)tx_enqueue(fmac_dev_ctx,
+						  nbuf,
+						  ac,
+						  peer_id);
 
 	if (status != NRF_WIFI_FMAC_TX_STATUS_SUCCESS) {
 		goto err;
@@ -1501,9 +1501,9 @@ enum nrf_wifi_fmac_tx_status nrf_wifi_fmac_tx(struct nrf_wifi_fmac_dev_ctx *fmac
 		goto out;
 	}
 
-	status = tx_pending_process(fmac_dev_ctx,
-				    desc,
-				    ac);
+	status = (enum nrf_wifi_fmac_tx_status)tx_pending_process(fmac_dev_ctx,
+					desc,
+					ac);
 out:
 	nrf_wifi_osal_spinlock_rel(def_dev_ctx->tx_config.tx_lock);
 
