@@ -1016,7 +1016,7 @@ out:
 	return status;
 }
 
-void hal_rpu_eventq_drain(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
+static void hal_rpu_eventq_drain(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 {
 	struct nrf_wifi_hal_msg *event = NULL;
 	unsigned long flags = 0;
@@ -1397,7 +1397,7 @@ void nrf_wifi_hal_unlock_rx(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 				       &flags);
 }
 
-enum nrf_wifi_status nrf_wifi_hal_irq_handler(void *data)
+static enum nrf_wifi_status nrf_wifi_hal_irq_handler(void *data)
 {
 	struct nrf_wifi_hal_dev_ctx *hal_dev_ctx = NULL;
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;

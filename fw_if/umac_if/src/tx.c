@@ -112,7 +112,7 @@ static unsigned short get_spare_desc_q_map(struct nrf_wifi_fmac_dev_ctx *fmac_de
 }
 
 
-int pending_frames_count(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static int pending_frames_count(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 			 int peer_id)
 {
 	int count = 0;
@@ -131,7 +131,7 @@ int pending_frames_count(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 }
 
 
-enum nrf_wifi_status update_pend_q_bmp(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static enum nrf_wifi_status update_pend_q_bmp(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 				       unsigned int ac,
 				       int peer_id)
 {
@@ -183,7 +183,7 @@ out:
 }
 
 
-void tx_desc_free(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static void tx_desc_free(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 		  unsigned int desc,
 		  int queue)
 {
@@ -292,7 +292,7 @@ unsigned int tx_desc_get(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 }
 
 
-int tx_aggr_check(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static int tx_aggr_check(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 		  void *first_nwb,
 		  int ac,
 		  int peer)
@@ -343,7 +343,7 @@ int tx_aggr_check(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 }
 
 
-int get_peer_from_wakeup_q(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static int get_peer_from_wakeup_q(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 			   unsigned int ac)
 {
 	int peer_id = -1;
@@ -382,7 +382,7 @@ int get_peer_from_wakeup_q(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 }
 
 
-int tx_curr_peer_opp_get(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static int tx_curr_peer_opp_get(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 			 unsigned int ac)
 {
 	unsigned int i = 0;
@@ -440,7 +440,7 @@ int tx_curr_peer_opp_get(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 	return peer_id;
 }
 
-size_t _tx_pending_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static size_t _tx_pending_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 			unsigned int desc,
 			unsigned int ac)
 {
@@ -602,7 +602,7 @@ out:
 }
 #endif /* NRF70_RAW_DATA_TX */
 
-enum nrf_wifi_status tx_cmd_prep_callbk_fn(void *callbk_data,
+static enum nrf_wifi_status tx_cmd_prep_callbk_fn(void *callbk_data,
 					   void *nbuf)
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
@@ -749,7 +749,7 @@ err:
 }
 #endif /* NRF70_RAW_DATA_TX */
 
-enum nrf_wifi_status tx_cmd_prepare(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static enum nrf_wifi_status tx_cmd_prepare(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 		   struct host_rpu_msg *umac_cmd,
 		   int desc,
 		   void *txq,
@@ -996,7 +996,7 @@ out:
 }
 
 
-enum nrf_wifi_status tx_enqueue(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static enum nrf_wifi_status tx_enqueue(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 				void *nwb,
 				unsigned int ac,
 				unsigned int peer_id)
@@ -1037,7 +1037,7 @@ out:
 }
 
 
-enum nrf_wifi_fmac_tx_status tx_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static enum nrf_wifi_fmac_tx_status tx_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 				unsigned char if_idx,
 				void *nbuf,
 				unsigned int ac,
@@ -1192,7 +1192,7 @@ unsigned int tx_buff_req_free(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 }
 
 
-enum nrf_wifi_status tx_done_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static enum nrf_wifi_status tx_done_process(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 				     unsigned char tx_desc_num)
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
@@ -1456,7 +1456,7 @@ out:
 }
 
 
-enum nrf_wifi_fmac_tx_status nrf_wifi_fmac_tx(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+static enum nrf_wifi_fmac_tx_status nrf_wifi_fmac_tx(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 				      int if_id,
 				      void *nbuf,
 				      unsigned int ac,
