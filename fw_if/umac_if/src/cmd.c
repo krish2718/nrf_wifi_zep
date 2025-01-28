@@ -12,6 +12,7 @@
 #include "host_rpu_umac_if.h"
 #include "hal_api.h"
 #ifndef NRF70_OFFLOADED_RAW_TX
+#include "fmac_cmd.h"
 #include "fmac_structs.h"
 #endif /* !NRF70_OFFLOADED_RAW_TX */
 #include "fmac_util.h"

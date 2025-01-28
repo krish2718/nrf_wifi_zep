@@ -19,6 +19,7 @@
 #include "fmac_ap.h"
 #endif /* !NRF70_OFFLOADED_RAW_TX */
 #include "fmac_cmd.h"
+#include "fmac_event.h"
 #include "fmac_util.h"
 
 #ifdef NRF70_DATA_TX

@@ -12,6 +12,7 @@
 #include "queue.h"
 #include "hal_reg.h"
 #include "hal_mem.h"
+#include "hal_interrupt.h"
 #include "hal_common.h"
 
 

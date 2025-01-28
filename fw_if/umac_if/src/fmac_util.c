@@ -11,6 +11,7 @@
 
 #include "osal_api.h"
 #include "fmac_api_common.h"
+#include "fmac_api.h"
 #include "fmac_util.h"
 #include "host_rpu_umac_if.h"
 
