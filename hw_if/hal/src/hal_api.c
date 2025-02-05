@@ -14,9 +14,14 @@
 #include "hal_common.h"
 #include "hal_reg.h"
 #include "hal_mem.h"
+#ifdef IPC_TRANSPORT
+#include "ipc_if.h"
+#else
 #include "hal_interrupt.h"
 #include "pal.h"
+#endif /* IPC_TRANSPORT */
 
+#ifndef IPC_TRANSPORT
 #if !defined(NRF70_RADIO_TEST) && !defined(NRF70_OFFLOADED_RAW_TX)
 static enum nrf_wifi_status
 nrf_wifi_hal_rpu_pktram_buf_map_init(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
@@ -671,7 +676,53 @@ static enum nrf_wifi_status hal_rpu_msg_get_addr(struct nrf_wifi_hal_dev_ctx *ha
 out:
 	return status;
 }
+#endif /* !IPC_TRANSPORT */
 
+#ifdef IPC_TRANSPORT
+static enum nrf_wifi_status hal_ipc_send_msg(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
+					     enum NRF_WIFI_HAL_MSG_TYPE msg_type,
+					     void *msg, unsigned int len)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	int ret;
+	ipc_ctx_t ctx;
+
+	ARG_UNUSED(hal_dev_ctx);
+
+	switch(msg_type) {
+		case NRF_WIFI_HAL_MSG_TYPE_CMD_CTRL:
+			ctx.inst = IPC_INSTANCE_CMD_CTRL;
+			ctx.ept = IPC_EPT_UMAC;
+			break;
+		case NRF_WIFI_HAL_MSG_TYPE_CMD_DATA_TX:
+			ctx.inst = IPC_INSTANCE_CMD_TX;
+			ctx.ept = IPC_EPT_UMAC;
+			break;
+		case NRF_WIFI_HAL_MSG_TYPE_CMD_DATA_RX:
+			ctx.inst = IPC_INSTANCE_RX;
+			ctx.ept = IPC_EPT_LMAC;
+			break;
+		default:
+			nrf_wifi_osal_log_err("%s: Invalid msg_type (%d)",
+					      __func__,
+					      msg_type);
+			goto out;
+
+	};
+
+	ret = rpu_dev()->send(ctx, msg, len);
+
+	if (ret < 0) {
+		nrf_wifi_osal_log_err("%s: Sending message to RPU failed\n",
+				       __func__);
+		goto out;
+	}
+
+	status = NRF_WIFI_STATUS_SUCCESS;
+out:
+	return status;
+}
+#endif /*  IPC_TRANSPORT */
 
 static enum nrf_wifi_status hal_rpu_msg_write(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 					      enum NRF_WIFI_HAL_MSG_TYPE msg_type,
@@ -680,7 +731,7 @@ static enum nrf_wifi_status hal_rpu_msg_write(struct nrf_wifi_hal_dev_ctx *hal_d
 {
 	unsigned int msg_addr = 0;
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-
+#ifndef IPC_TRANSPORT
 	/* Get the address from the RPU to which
 	 * the command needs to be copied to
 	 */
@@ -718,8 +769,13 @@ static enum nrf_wifi_status hal_rpu_msg_write(struct nrf_wifi_hal_dev_ctx *hal_d
 				      __func__);
 		goto out;
 	}
-
 out:
+#else
+	status = hal_ipc_send_msg(hal_dev_ctx,
+				  msg_type,
+				  msg,
+				  len);
+#endif /* !IPC_TRANSPORT */
 	return status;
 }
 
@@ -730,6 +786,7 @@ static enum nrf_wifi_status hal_rpu_cmd_process_queue(struct nrf_wifi_hal_dev_ct
 	struct nrf_wifi_hal_msg *cmd = NULL;
 
 	while ((cmd = nrf_wifi_utils_q_dequeue(hal_dev_ctx->cmd_q))) {
+#ifndef IPC_TRANSPORT
 		status = hal_rpu_ready_wait(hal_dev_ctx,
 					    NRF_WIFI_HAL_MSG_TYPE_CMD_CTRL);
 
@@ -740,7 +797,7 @@ static enum nrf_wifi_status hal_rpu_cmd_process_queue(struct nrf_wifi_hal_dev_ct
 			cmd = NULL;
 			continue;
 		}
-
+#endif /* !IPC_TRANSPORT */
 		status = hal_rpu_msg_write(hal_dev_ctx,
 					   NRF_WIFI_HAL_MSG_TYPE_CMD_CTRL,
 					   cmd->data,
@@ -890,14 +947,37 @@ enum nrf_wifi_status nrf_wifi_hal_data_cmd_send(struct nrf_wifi_hal_dev_ctx *hal
 						unsigned int pool_id)
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+#ifndef IPC_TRANSPORT
 	unsigned int addr_base = 0;
 	unsigned int max_cmd_size = 0;
-	unsigned int addr = 0;
 	unsigned int host_addr = 0;
-
+#endif/* !IPC_TRANSPORT */
+	unsigned int addr = 0;
 
 	nrf_wifi_osal_spinlock_take(hal_dev_ctx->lock_hal);
+#ifdef IPC_TRANSPORT
 
+	if (cmd_type == NRF_WIFI_HAL_MSG_TYPE_CMD_DATA_TX) {
+		addr  = 0x2fc12000 + (RPU_DATA_CMD_SIZE_MAX_TX * desc_id);
+		memcpy((void *)addr,cmd,cmd_size);
+
+		status = hal_ipc_send_msg(hal_dev_ctx,
+					  cmd_type,
+					  (void *)addr,
+					  cmd_size);
+	} else {
+		status = hal_ipc_send_msg(hal_dev_ctx,
+					  cmd_type,
+					  cmd,
+					  cmd_size);
+	}
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+                nrf_wifi_osal_log_err("%s: Sending message to RPU failed\n",
+				       __func__);
+		goto out;
+	}
+#else
 	if (cmd_type == NRF_WIFI_HAL_MSG_TYPE_CMD_DATA_RX) {
 		addr_base = hal_dev_ctx->rpu_info.rx_cmd_base;
 		max_cmd_size = RPU_DATA_CMD_SIZE_MAX_RX;
@@ -943,6 +1023,7 @@ enum nrf_wifi_status nrf_wifi_hal_data_cmd_send(struct nrf_wifi_hal_dev_ctx *hal
 				      __func__);
 		goto out;
 	}
+#endif /* !IPC_TRANSPORT */
 out:
 	nrf_wifi_osal_spinlock_rel(hal_dev_ctx->lock_hal);
 
@@ -1093,7 +1174,9 @@ static void recovery_tasklet_fn(unsigned long data)
 struct nrf_wifi_hal_dev_ctx *nrf_wifi_hal_dev_add(struct nrf_wifi_hal_priv *hpriv,
 						  void *mac_dev_ctx)
 {
+#ifndef IPC_TRANSPORT
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+#endif /* !IPC_TRANSPORT */
 	struct nrf_wifi_hal_dev_ctx *hal_dev_ctx = NULL;
 #if !defined(NRF70_RADIO_TEST) && !defined(NRF70_OFFLOADED_RAW_TX)
 	unsigned int i = 0;
@@ -1199,7 +1282,7 @@ struct nrf_wifi_hal_dev_ctx *nrf_wifi_hal_dev_add(struct nrf_wifi_hal_priv *hpri
 				      __func__);
 		goto lock_recovery_free;
 	}
-
+#ifndef IPC_TRANSPORT
 	status = hal_rpu_irq_enable(hal_dev_ctx);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
@@ -1207,7 +1290,7 @@ struct nrf_wifi_hal_dev_ctx *nrf_wifi_hal_dev_add(struct nrf_wifi_hal_priv *hpri
 				      __func__);
 		goto bal_dev_free;
 	}
-
+#endif /* !IPC_TRANSPORT */
 #if !defined(NRF70_RADIO_TEST) && !defined(NRF70_OFFLOADED_RAW_TX)
 	for (i = 0; i < MAX_NUM_OF_RX_QUEUES; i++) {
 		num_rx_bufs = hal_dev_ctx->hpriv->cfg_params.rx_buf_pool[i].num_bufs;
@@ -1236,6 +1319,7 @@ struct nrf_wifi_hal_dev_ctx *nrf_wifi_hal_dev_add(struct nrf_wifi_hal_priv *hpri
 	}
 #endif /* NRF70_DATA_TX */
 
+#ifndef IPC_TRANSPORT
 	status = nrf_wifi_hal_rpu_pktram_buf_map_init(hal_dev_ctx);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
@@ -1245,12 +1329,15 @@ struct nrf_wifi_hal_dev_ctx *nrf_wifi_hal_dev_add(struct nrf_wifi_hal_priv *hpri
 		goto tx_buf_free;
 #endif /* NRF70_DATA_TX */
 	}
+#endif /* !IPC_TRANSPORT */
 #endif /* !NRF70_RADIO_TEST && !NRF70_OFFLOADED_RAW_TX*/
 
 	return hal_dev_ctx;
 #if !defined(NRF70_RADIO_TEST) && !defined(NRF70_OFFLOADED_RAW_TX)
 #ifdef NRF70_DATA_TX
+#ifndef IPC_TRANSPORT
 tx_buf_free:
+#endif /* !IPC_TRANSPORT */
 	nrf_wifi_osal_mem_free(hal_dev_ctx->tx_buf_info);
 	hal_dev_ctx->tx_buf_info = NULL;
 rx_buf_free:
@@ -1341,6 +1428,7 @@ enum nrf_wifi_status nrf_wifi_hal_dev_init(struct nrf_wifi_hal_dev_ctx *hal_dev_
 		goto out;
 	}
 
+#ifndef IPC_TRANSPORT
 	/* Read the HPQM info for all the queues provided by the RPU
 	 * (like command, event, RX buf queues etc)
 	 */
@@ -1367,11 +1455,30 @@ enum nrf_wifi_status nrf_wifi_hal_dev_init(struct nrf_wifi_hal_dev_ctx *hal_dev_
 	}
 
 	hal_dev_ctx->rpu_info.tx_cmd_base = RPU_MEM_TX_CMD_BASE;
+#endif /* !IPC_TRANSPORT */
 	nrf_wifi_hal_enable(hal_dev_ctx);
 out:
 	return status;
 }
 
+#ifdef IPC_TRANSPORT
+enum nrf_wifi_status nrf_wifi_hal_ipc_msg_handler(void *priv)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_hal_dev_ctx *hal_dev_ctx = (struct nrf_wifi_hal_dev_ctx *) priv;
+	void *event_data = hal_dev_ctx->ipc_msg;
+	// IPC message is a pointer to packet ram address so the len is not relevant
+	unsigned int event_len = sizeof(event_data);
+
+	nrf_wifi_osal_log_info("%s: IPC message received\n", __func__);
+	// intr_callbk_fn == wifi_nrf_fmac_event_callback
+	status = hal_dev_ctx->hpriv->intr_callbk_fn(hal_dev_ctx->mac_dev_ctx,
+														event_data,
+														event_len);
+
+	return status;
+}
+#endif /* IPC_TRANSPORT */
 
 void nrf_wifi_hal_dev_deinit(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 {
@@ -1397,7 +1504,8 @@ void nrf_wifi_hal_unlock_rx(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 				       &flags);
 }
 
-static enum nrf_wifi_status nrf_wifi_hal_irq_handler(void *data)
+#ifndef IPC_TRANSPORT
+enum nrf_wifi_status nrf_wifi_hal_irq_handler(void *data)
 {
 	struct nrf_wifi_hal_dev_ctx *hal_dev_ctx = NULL;
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
@@ -1434,7 +1542,7 @@ out:
 				       &flags);
 	return status;
 }
-
+#endif /* !IPC_TRANSPORT */
 
 static int nrf_wifi_hal_poll_reg(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 				 unsigned int reg_addr,
@@ -1557,6 +1665,7 @@ out:
 	return status;
 }
 
+#ifndef IPC_TRANSPORT
 #define MCU_FW_BOOT_TIMEOUT_MS 1000
 enum nrf_wifi_status nrf_wifi_hal_fw_chk_boot(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 					      enum RPU_PROC_TYPE rpu_proc)
@@ -1618,7 +1727,7 @@ out:
 
 	return status;
 }
-
+#endif /* !IPC_TRANSPORT */
 
 struct nrf_wifi_hal_priv *
 nrf_wifi_hal_init(struct nrf_wifi_hal_cfg_params *cfg_params,
@@ -1648,6 +1757,7 @@ nrf_wifi_hal_init(struct nrf_wifi_hal_cfg_params *cfg_params,
 	hpriv->intr_callbk_fn = intr_callbk_fn;
 	hpriv->rpu_recovery_callbk_fn = rpu_recovery_callbk_fn;
 
+#ifndef IPC_TRANSPORT
 	status = pal_rpu_addr_offset_get(RPU_ADDR_PKTRAM_START,
 					 &hpriv->addr_pktram_base,
 					 RPU_PROC_TYPE_MAX);
@@ -1662,6 +1772,13 @@ nrf_wifi_hal_init(struct nrf_wifi_hal_cfg_params *cfg_params,
 
 	hpriv->bpriv = nrf_wifi_bal_init(&bal_cfg_params,
 					 &nrf_wifi_hal_irq_handler);
+
+#else /* !IPC_TRANSPORT */
+	ARG_UNUSED(status);
+	/* pkram base addr is not needed for IPC */
+	hpriv->bpriv = nrf_wifi_bal_init(&bal_cfg_params,
+					 &nrf_wifi_hal_ipc_msg_handler);
+#endif /* !IPC_TRANSPORT */
 
 	if (!hpriv->bpriv) {
 		nrf_wifi_osal_log_err("%s: Failed",
@@ -1681,7 +1798,7 @@ void nrf_wifi_hal_deinit(struct nrf_wifi_hal_priv *hpriv)
 	nrf_wifi_osal_mem_free(hpriv);
 }
 
-
+#ifndef IPC_TRANSPORT
 enum nrf_wifi_status nrf_wifi_hal_otp_info_get(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 					       struct host_rpu_umac_info *otp_info,
 					       unsigned int *otp_flags)
@@ -1769,6 +1886,7 @@ enum nrf_wifi_status nrf_wifi_hal_otp_pack_info_get(struct nrf_wifi_hal_dev_ctx 
 out:
 	return status;
 }
+#endif /* !IPC_TRANSPORT */
 
 void nrf_wifi_hal_enable(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 {

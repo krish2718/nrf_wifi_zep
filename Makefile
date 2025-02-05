@@ -5,6 +5,7 @@ FW_LOAD_SUPPORT := 1
 FW_LOAD?=PATCH
 # Default is empty to force explicit selection
 BUS_IF := PCIE
+IPC := 0
 
 # Due to multiple Makefiles, we need to get the current directory
 NRF_WIFI_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
@@ -26,9 +27,17 @@ else ifeq ($(BUS_IF), PCIE)
 	INCLUDES += -I$(NRF_WIFI_DIR)/bus_if/bus/pcie/inc
 endif
 
+ifeq ($(IPC), 1)
+		INCLUDES += -I$(NRF_WIFI_DIR)/bus_if/bus/ipc/
+		ccflags-y += -DIPC_TRANSPORT
+endif
+
 # TODO: Use Kconfig + menuconfig for this
 # For now, just comment/uncomment the flags you want
-ccflags-y += -DNRF_WIFI_LOW_POWER
+# if !IPC
+ifeq ($(IPC), 0)
+	ccflags-y += -DNRF_WIFI_LOW_POWER
+endif
 ccflags-y += -DNRF_WIFI_RPU_RECOVERY
 ccflags-y += -DNRF_WIFI_AP_DEAD_DETECT_TIMEOUT=20
 ccflags-y += -DNRF_WIFI_IFACE_MTU=1500
@@ -126,6 +135,11 @@ else ifeq ($(BUS_IF), SPI)
 	SRCS += bus_if/bus/pcie/src/spi.c
 else ifeq ($(BUS_IF), PCIE)
 	SRCS += bus_if/bus/pcie/src/pcie.c
+endif
+
+ifeq ($(IPC), 1)
+	SRCS += bus_if/bus/ipc/src/ipc.c
+	SRCS += bus_if/bus/ipc/src/wifi_ipc_service.c
 endif
 
 ifeq ($(RADIO_TEST), 1)

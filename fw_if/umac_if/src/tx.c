@@ -577,6 +577,7 @@ enum nrf_wifi_status rawtx_cmd_prep_callbk_fn(void *callbk_data,
 	nwb_data = (unsigned long)nrf_wifi_osal_nbuf_data_get((void *)nwb);
 	buf_len = nrf_wifi_osal_nbuf_data_size((void *)nwb);
 
+#ifndef IPC_TRANSPORT
 	phy_addr = nrf_wifi_hal_buf_map_tx(fmac_dev_ctx->hal_dev_ctx,
 					   nwb_data,
 					   buf_len,
@@ -593,7 +594,9 @@ enum nrf_wifi_status rawtx_cmd_prep_callbk_fn(void *callbk_data,
 	tx_buf_info->nwb = nwb;
 	tx_buf_info->mapped = true;
 	config->raw_tx_info.frame_ddr_pointer = (unsigned long long)phy_addr;
-	config->raw_tx_info.pkt_length = buf_len;
+#else
+        config->raw_tx_info.frame_ddr_pointer =  (unsigned long long)nwb_data;
+#endif /* !IPC_TRANSPORT */
 	info->num_tx_pkts++;
 
 	status = NRF_WIFI_STATUS_SUCCESS;
@@ -610,7 +613,9 @@ static enum nrf_wifi_status tx_cmd_prep_callbk_fn(void *callbk_data,
 	struct nrf_wifi_fmac_buf_map_info *tx_buf_info = NULL;
 	unsigned long nwb = 0;
 	unsigned long nwb_data = 0;
+#ifndef IPC_TRANSPORT
 	unsigned long phy_addr = 0;
+#endif /* !IPC_TRANSPORT */
 	struct tx_cmd_prep_info *info = NULL;
 	struct nrf_wifi_tx_buff *config = NULL;
 	unsigned int desc_id = 0;
@@ -648,6 +653,7 @@ static enum nrf_wifi_status tx_cmd_prep_callbk_fn(void *callbk_data,
 
 	buf_len = nrf_wifi_osal_nbuf_data_size((void *)nwb);
 
+#ifndef IPC_TRANSPORT
 	phy_addr = nrf_wifi_hal_buf_map_tx(fmac_dev_ctx->hal_dev_ctx,
 					   nwb_data,
 					   buf_len,
@@ -667,7 +673,10 @@ static enum nrf_wifi_status tx_cmd_prep_callbk_fn(void *callbk_data,
 
 	config->tx_buff_info[frame_indx].ddr_ptr =
 		(unsigned long long)phy_addr;
-
+#else
+	config->tx_buff_info[frame_indx].ddr_ptr =
+		(unsigned long long)nwb_data;
+#endif /* !IPC_TRANSPORT */
 	config->tx_buff_info[frame_indx].pkt_length = buf_len;
 	config->num_tx_pkts++;
 
@@ -1202,7 +1211,9 @@ static enum nrf_wifi_status tx_done_process(struct nrf_wifi_fmac_dev_ctx *fmac_d
 	unsigned int desc = 0;
 	unsigned int frame = 0;
 	unsigned int desc_id = 0;
+#ifndef IPC_TRANSPORT
 	unsigned long virt_addr = 0;
+#endif /* !IPC_TRANSPORT */
 	struct nrf_wifi_fmac_buf_map_info *tx_buf_info = NULL;
 	struct tx_pkt_info *pkt_info = NULL;
 	unsigned int pkt = 0;
@@ -1233,7 +1244,7 @@ static enum nrf_wifi_status tx_done_process(struct nrf_wifi_fmac_dev_ctx *fmac_d
 		desc_id = (desc * def_priv->data_config.max_tx_aggregation) + frame;
 
 		tx_buf_info = &def_dev_ctx->tx_buf_info[desc_id];
-
+#ifndef IPC_TRANSPORT
 		if (!tx_buf_info->mapped) {
 			nrf_wifi_osal_log_err("%s: Deinit_TX cmd called for unmapped TX buf(%d)",
 					      __func__,
@@ -1257,6 +1268,7 @@ static enum nrf_wifi_status tx_done_process(struct nrf_wifi_fmac_dev_ctx *fmac_d
 		 */
 		tx_buf_info->nwb = 0;
 		tx_buf_info->mapped = false;
+#endif /* !IPC_TRANSPORT */
 	}
 
 	pkt = 0;

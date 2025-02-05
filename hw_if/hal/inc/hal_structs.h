@@ -169,6 +169,7 @@ struct nrf_wifi_hal_priv {
 	unsigned long addr_pktram_base;
 };
 
+#ifndef IPC_TRANSPORT
 /**
  * @brief Structure to hold RPU information.
  */
@@ -180,6 +181,7 @@ struct nrf_wifi_hal_info {
 	/** TX command base */
 	unsigned int tx_cmd_base;
 };
+#endif /* !IPC_TRANSPORT */
 
 /**
  * @brief Structure to hold buffer mapping information for the HAL layer.
@@ -208,7 +210,11 @@ struct nrf_wifi_hal_dev_ctx {
 	/** Device index */
 	unsigned char idx;
 	/** RPU information */
+#ifndef IPC_TRANSPORT
 	struct nrf_wifi_hal_info rpu_info;
+#else /* IPC_TRANSPORT */
+        void *ipc_msg;
+#endif /* !IPC_TRANSPORT */
 	/** Number of commands */
 	unsigned int num_cmds;
 	/** Command queue */
