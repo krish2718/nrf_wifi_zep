@@ -1,0 +1,4 @@
+#ifndef IPC_SERVICE_IPC_ICMSG_H
+#define IPC_SERVICE_IPC_ICMSG_H
+
+#endif /* IPC_SERVICE_IPC_ICMSG_H */
