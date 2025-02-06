@@ -29,6 +29,7 @@ endif
 
 ifeq ($(IPC), 1)
 		INCLUDES += -I$(NRF_WIFI_DIR)/bus_if/bus/ipc/
+		INCLUDES += -I$(NRF_WIFI_DIR)/linux_ipc_shim
 		ccflags-y += -DIPC_TRANSPORT
 endif
 
@@ -140,6 +141,12 @@ endif
 ifeq ($(IPC), 1)
 	SRCS += bus_if/bus/ipc/src/ipc.c
 	SRCS += bus_if/bus/ipc/src/wifi_ipc_service.c
+	# Linux shim
+	SRCS += bus_if/bus/ipc/src/ipc_service.c
+	SRCS += linux_ipc_shim/icmsg.c
+	SRCS += linux_ipc_shim/bellboard.c
+	SRCS += linux_ipc_shim/ipc_icmsg.c
+	SRCS += linux_ipc_shim/spsc_pbuf.c
 endif
 
 ifeq ($(RADIO_TEST), 1)

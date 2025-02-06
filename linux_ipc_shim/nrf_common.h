@@ -1,9 +1,9 @@
 #ifndef IPC_SERVICE_NRF_COMMON_H
 #define IPC_SERVICE_NRF_COMMON_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <assert.h>
+#include <linux/stddef.h>
+#include <linux/stdint.h>
+#include <linux/kernel.h>
 
 #define BIT(n) (1UL << (n))
 #define BIT_MASK(n) (BIT(n) - 1UL)
@@ -16,7 +16,7 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-#define __ASSERT_NO_MSG assert
+#define __ASSERT_NO_MSG BUG_ON
 
 #define BUILD_ASSERT(EXPR, MSG...)
 

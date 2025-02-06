@@ -1,14 +1,11 @@
 #ifndef IPC_SERVICE_ICMSG_H
 #define IPC_SERVICE_ICMSG_H
 
-#include "meos/ipc_service/mbox.h"
-#include "meos/ipc_service/ipc_service.h"
-#include "meos/kernel/krn.h"
-
-#include "MEOS.h"
-
-#include <stddef.h>
-#include <stdint.h>
+#include "ipc_service.h"
+#include "mbox.h"
+#include <linux/kernel.h>
+#include <linux/semaphore.h>
+#include <linux/timer.h>
 
 // TODO: Make this define configurable through Makefile
 //#define CONFIG_IPC_SERVICE_ICMSG_NOCOPY_RX
@@ -30,18 +27,13 @@ struct icmsg_config_t {
 
 struct icmsg_state_t {
     volatile int value;
-    KRN_SEMAPHORE_T lock;
+    struct semaphore lock;
 };
 
 struct icmsg_data_t {
     /* Tx/Rx buffers. */
-#ifdef CONFIG_IPC_SERVICE_PBUF
-    struct pbuf *tx_pb;
-    struct pbuf *rx_pb;
-#else
     struct spsc_pbuf *tx_ib;
     struct spsc_pbuf *rx_ib;
-#endif
 
     struct icmsg_state_t tx_buffer_state;
 
@@ -51,7 +43,7 @@ struct icmsg_data_t {
 
     /* General */
     const struct icmsg_config_t *cfg;
-    KRN_TIMER_T notify_timer;
+    struct timer_list notify_timer;
     struct icmsg_state_t state;
 
     /* No-copy */

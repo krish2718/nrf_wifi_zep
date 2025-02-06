@@ -1,7 +1,7 @@
 #ifndef IPC_SERVICE_IPC_SERVICE_BACKEND_H
 #define IPC_SERVICE_IPC_SERVICE_BACKEND_H
 
-#include "meos/ipc_service/ipc_service.h"
+#include "ipc_service.h"
 
 struct ipc_service_backend
 {

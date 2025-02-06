@@ -1,11 +1,11 @@
 #ifndef IPC_SERVICE_MBOX_H
 #define IPC_SERVICE_MBOX_H
 
-#include "meos/ipc_service/device.h"
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/errno.h>
 
-#include <errno.h>
-#include <stdio.h>
-#include <assert.h>
+#include "device.h"
 
 struct mbox_msg {
     /** Pointer to the data sent in the message. */
@@ -26,7 +26,7 @@ struct mbox_channel {
 typedef void (*mbox_callback_t)(const struct device *dev, uint32_t channel, void *user_data, struct mbox_msg *data);
 typedef int (*mbox_send_t)(const struct device *dev, uint32_t channel, const struct mbox_msg *msg);
 typedef int (*mbox_mtu_get_t)(const struct device *dev);
-typedef int (*mbox_register_callback_t)(const struct device *dev, uint32_t channel, mbox_callback_t cb,	void *user_data);
+typedef int (*mbox_register_callback_t)(const struct device *dev, uint32_t channel, mbox_callback_t cb, void *user_data);
 typedef int (*mbox_set_enabled_t)(const struct device *dev, uint32_t channel, bool enable);
 typedef uint32_t (*mbox_max_channels_get_t)(const struct device *dev);
 
@@ -48,8 +48,14 @@ static inline int mbox_send(const struct mbox_channel *channel, const struct mbo
 {
     const struct mbox_driver_api *api = (const struct mbox_driver_api *) ((uintptr_t)channel->dev->api);
 
-    assert(api != NULL);
-    assert(api->send != NULL);
+    if (api == NULL) {
+        pr_err("mbox_send: api is NULL\n");
+        return -EINVAL;
+    }
+    if (api->send == NULL) {
+        pr_err("mbox_send: api->send is NULL\n");
+        return -EINVAL;
+    }
     return api->send(channel->dev, channel->id, msg);
 }
 
@@ -68,7 +74,10 @@ static inline int mbox_set_enabled(const struct mbox_channel *channel, bool enab
 {
     const struct mbox_driver_api *api = (const struct mbox_driver_api *) channel->dev->api;
 
-    assert(api->set_enabled != NULL);
+    if (api->set_enabled == NULL) {
+        pr_err("mbox_set_enabled: api->set_enabled is NULL\n");
+        return -EINVAL;
+    }
     return api->set_enabled(channel->dev, channel->id, enable);
 }
 

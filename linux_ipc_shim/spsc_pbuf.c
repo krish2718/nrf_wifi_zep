@@ -1,4 +1,4 @@
-#include "meos/ipc_service/spsc_pbuf.h"
+#include "spsc_pbuf.h"
 
 #define IS_ENABLED(a) 0
 

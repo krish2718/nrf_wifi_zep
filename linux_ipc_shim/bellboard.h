@@ -1,7 +1,7 @@
 #ifndef IPC_SERVICE_BELLBOARD_H
 #define IPC_SERVICE_BELLBOARD_H
 
-#include <stdint.h>
+#include <linux/stdint.h>
 #include "core_vpr.h"
 #include "wifi_mdk_common.h"
 #include "riscv_encoding.h"

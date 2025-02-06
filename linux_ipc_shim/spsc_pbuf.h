@@ -1,22 +1,22 @@
 #ifndef IPC_SERVICE_SPSC_PBUF_H
 #define IPC_SERVICE_SPSC_PBUF_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <assert.h>
-#include <stdio.h>
+#include <linux/stdint.h>
+#include <linux/stddef.h>
+#include <linux/stdbool.h>
+#include <linux/kernel.h>
+#include <linux/stdio.h>
 #include <string.h>
 #include <errno.h>
 
-#include "meos/ipc_service/nrf_common.h"
+#include "nrf_common.h"
 
-/** Override assert functions */
+/** Override BUG_ON functions */
 #define __ASSERT(expr, msg) \
   do { \
     if (!(expr)) { \
       fprintf(stderr, msg); \
-      assert(0); \
+      BUG_ON(0); \
     } \
   } while (false)
 

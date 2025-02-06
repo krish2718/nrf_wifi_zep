@@ -1,9 +1,8 @@
 #ifndef IPC_SERVICE_DEVICE_H
 #define IPC_SERVICE_DEVICE_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
 
 struct device_state
 {

@@ -2,6 +2,7 @@
 #define WIFI_IPC_SERVICE_H
 
 #include "osal_structs.h"
+#include "ipc_service.h"
 #include "spsc_qm.h"
 
 #define GET_IPC_INSTANCE(dev) (dev)

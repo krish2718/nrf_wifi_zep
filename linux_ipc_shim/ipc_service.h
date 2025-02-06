@@ -1,8 +1,8 @@
 #ifndef IPC_SERVICE_IPC_SERVICE_H
 #define IPC_SERVICE_IPC_SERVICE_H
 
-#include "meos/ipc_service/defines.h"
-#include "meos/ipc_service/device.h"
+#include "defines.h"
+#include "device.h"
 
 struct ipc_service_cb {
     void (*bound)(void *priv);

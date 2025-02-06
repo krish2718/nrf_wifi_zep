@@ -1,10 +1,9 @@
-#include "meos/ipc_service/bellboard.h"
-#include "meos/ipc_service/nrf_common.h"
-#include "meos/ipc_service/device.h"
-#include "meos/kernel/krn.h"
-#include "meos/irq/irq.h"
+#include "bellboard.h"
+#include "nrf_common.h"
+#include "device.h"
 
-#include <assert.h>
+
+#include <linux/kernel.h>
 
 enum {
     NRFX_BELLBOARD0_INST_IDX,
@@ -32,7 +31,7 @@ int bellboard_init( nrfx_bellboard_t const *    p_instance,
                     bellboard_event_handler_t   event_handler,
                     void *                      p_context)
 {
-    assert(p_instance);
+    BUG_ON(p_instance);
 
     bellboard_cb_t *p_cb = &m_cb[p_instance->drv_inst_idx];
 
@@ -61,7 +60,7 @@ void bellboard_uninit(nrfx_bellboard_t const *p_instance)
 {
     bellboard_cb_t * p_cb = &m_cb[p_instance->drv_inst_idx];
 
-    assert(p_cb->state == DRV_STATE_INITIALIZED);
+    BUG_ON(p_cb->state == DRV_STATE_INITIALIZED);
 
     p_cb->handler = NULL;
     p_cb->state = DRV_STATE_UNINITIALIZED;
@@ -69,8 +68,8 @@ void bellboard_uninit(nrfx_bellboard_t const *p_instance)
 
 void bellboard_int_enable(nrfx_bellboard_t const *p_instance, uint32_t mask)
 {
-    assert(p_instance);
-    assert(m_cb[p_instance->drv_inst_idx].state == DRV_STATE_INITIALIZED);
+    BUG_ON(p_instance);
+    BUG_ON(m_cb[p_instance->drv_inst_idx].state == DRV_STATE_INITIALIZED);
 
     switch (p_instance->int_idx)
     {
@@ -113,15 +112,15 @@ void bellboard_int_enable(nrfx_bellboard_t const *p_instance, uint32_t mask)
 #endif
 #endif
         default:
-            assert(0);
+            BUG_ON(0);
             break;
     }
 }
 
 void bellboard_int_disable(nrfx_bellboard_t const *p_instance, uint32_t mask)
 {
-    assert(p_instance);
-    assert(m_cb[p_instance->drv_inst_idx].state == DRV_STATE_INITIALIZED);
+    BUG_ON(p_instance);
+    BUG_ON(m_cb[p_instance->drv_inst_idx].state == DRV_STATE_INITIALIZED);
 
     switch (p_instance->int_idx)
     {
@@ -156,7 +155,7 @@ void bellboard_int_disable(nrfx_bellboard_t const *p_instance, uint32_t mask)
 #endif
 #endif
         default:
-            assert(0);
+            BUG_ON(0);
             break;
     }
 }
@@ -188,7 +187,7 @@ uint32_t bellboard_int_pending_get(NRF_BELLBOARD_Type const *p_reg, uint8_t grou
 #endif
 #endif
         default:
-            assert(0);
+            BUG_ON(0);
             return 0;
     }
 }
@@ -202,7 +201,7 @@ void bellboard_irq_handler(void)
     int32_t bellboardNum = irq_idx - BELLBOARD_WIFI_0_IRQn;
 #endif
 
-    assert(bellboardNum >= 0 && bellboardNum < NRFX_BELLBOARD_ENABLED_COUNT);
+    BUG_ON(bellboardNum >= 0 && bellboardNum < NRFX_BELLBOARD_ENABLED_COUNT);
 
     bellboard_cb_t *p_cb = NULL;
 
@@ -215,10 +214,10 @@ void bellboard_irq_handler(void)
         }
     }
 
-    assert(p_cb);
-    assert(p_cb->context);
-    assert(p_cb->handler);
-    assert(p_cb->int_idx == bellboardNum);
+    BUG_ON(p_cb);
+    BUG_ON(p_cb->context);
+    BUG_ON(p_cb->handler);
+    BUG_ON(p_cb->int_idx == bellboardNum);
 
     uint32_t int_pend = bellboard_int_pending_get(NRF_WIFICORE_BELLBOARD, p_cb->int_idx);
 

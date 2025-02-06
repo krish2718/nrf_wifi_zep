@@ -1,6 +1,6 @@
-#include "meos/ipc_service/ipc_icmsg.h"
-#include "meos/ipc_service/icmsg.h"
-#include "meos/ipc_service/ipc_service_backend.h"
+#include "ipc_icmsg.h"
+#include "icmsg.h"
+#include "ipc_service_backend.h"
 
 static int register_ept(const struct device *instance, void **token,
             const struct ipc_ept_cfg *cfg)

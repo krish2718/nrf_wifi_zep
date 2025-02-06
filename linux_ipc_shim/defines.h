@@ -1,22 +1,11 @@
 #ifndef IPC_SERVICE_DEFINES_H
 #define IPC_SERVICE_DEFINES_H
 
-#include "meos/ipc_service/device.h"
-#include "meos/ipc_service/icmsg.h"
-#include "meos/ipc_service/mbox_ids.h"
-#include "meos/ipc_service/ids.h"
+#include <linux/kernel.h>
+#include <linux/errno.h>
 
-#include <errno.h>
-#include <stdint.h>
-
-#ifdef CONFIG_IPC_SERVICE_PBUF
-    #include "meos/ipc_service/pbuf.h"
-#endif
-
-/* Size of PBUF read buffer in bytes */
-#define CONFIG_PBUF_RX_READ_BUF_SIZE 128
-/* Length of single IPC message in bytes */
-#define CONFIG_APP_IPC_SERVICE_MESSAGE_LEN 100
+#include "device.h"
+#include "icmsg.h"
 
 /*
  * Notes from NCS.
@@ -75,51 +64,6 @@
 #define _CONCAT3(x, y, z) x##y##z
 #define STRINGIFY(x) #x
 
-/**
- * Get the IRQ index from a given signal type (internal use only)
- * - Use default IRQ 96 for bellboard
- * - Unused for vevif
- */
-#if defined(NRF_UMAC) && defined(__UCC__) && __UCC__ == 720
-#define IDS_CONFIG_GET_IRQ(signal_type) (   \
-    (signal_type) == IDS_BELLBOARD_SIGNAL   \
-        ? BELLBOARD_WIFI_2_IRQn             \
-        : 0                                 \
-)
-#else
-#define IDS_CONFIG_GET_IRQ(signal_type) (   \
-    (signal_type) == IDS_BELLBOARD_SIGNAL   \
-        ? BELLBOARD_WIFI_0_IRQn             \
-        : 0                                 \
-)
-#endif
-
-#define CREATE_IDS_INSTANCE(id, signal_type)                \
-{                                                           \
-    .drv_inst_idx   = _CONCAT3(NRFX_IDS, id, _INST_IDX),    \
-    .int_idx        = id,                                   \
-    .sig_inst_type  = signal_type,                          \
-}
-
-__attribute__((__unused__)) static struct mbox_ids_conf rx_ids_config_bellboard;
-__attribute__((__unused__)) static struct mbox_ids_conf rx_ids_config_vevif;
-
-__attribute__((__unused__)) static struct mbox_ids_data rx_mbox_data_bellboard;
-__attribute__((__unused__)) static struct mbox_ids_data rx_mbox_data_vevif;
-
-#define GET_IDS_CONFIG_RX(signal_type) (    \
-    (signal_type) == IDS_BELLBOARD_SIGNAL   \
-        ? &rx_ids_config_bellboard          \
-        : &rx_ids_config_vevif              \
-)
-
-#define GET_MBOX_DATA_RX(signal_type) (     \
-    (signal_type) == IDS_BELLBOARD_SIGNAL   \
-        ? &rx_mbox_data_bellboard           \
-        : &rx_mbox_data_vevif               \
-)
-
-extern const struct mbox_driver_api ids_driver_api;
 extern const struct ipc_service_backend backend_ops;
 
 struct ipc_device_wrapper {
@@ -130,43 +74,20 @@ struct ipc_device_wrapper {
     nrfx_ids_t *rx_instance;
 };
 
-#ifdef CONFIG_IPC_SERVICE_PBUF
-    /**
-     * Create and prepare a pbuf config for run-time initialisation.
-     * @see `PBUF_DEFINE` in pbuf.h
-     */
-    #define DEFINE_BACKEND_DATA(name)                   \
-                                                        \
-        static struct pbuf_cfg cfg_tx_pb_##name;        \
-        static struct pbuf tx_pb_##name = {             \
-            .cfg = &cfg_tx_pb_##name,                   \
-        };                                              \
-                                                        \
-        static struct pbuf_cfg cfg_rx_pb_##name;        \
-        static struct pbuf rx_pb_##name = {             \
-            .cfg = &cfg_rx_pb_##name,                   \
-        };                                              \
-                                                        \
-        static struct icmsg_data_t name = {             \
-            .tx_pb = &tx_pb_##name,                     \
-            .rx_pb = &rx_pb_##name                      \
-        }
-#else
-    #define DEFINE_BACKEND_DATA(name)                   \
-        static struct icmsg_data_t name
-#endif
+#define DEFINE_BACKEND_DATA(name) static struct icmsg_data_t name
 
 /**
- * Compile-time assertion to ensure a variable is not const-qualified.
+ * Compile-time BUG_ONion to ensure a variable is not const-qualified.
  *
  * This macro creates a function that attempts to assign the variable to itself
  * If the variable is const-qualified, this assigment will fail at compile-time,
  * generating a compiler error.
  */
 #define ASSERT_NOT_CONST(var) \
-    void __assert_not_const_##var(void) { \
-        var = var; /* This will fail if var is const */ \
-    }
+    do { \
+        extern void __assert_not_const_##var(void); \
+        if (0) __assert_not_const_##var(); \
+    } while (0)
 
 /**
  * Populate compile-time structures for IPC service
@@ -178,23 +99,13 @@ struct ipc_device_wrapper {
                                                                                         \
     DEFINE_BACKEND_DATA(backend_data_##ipc_name);                                       \
                                                                                         \
-    /* Always use instance #0 which means one irq will service many channels */         \
-    static nrfx_ids_t rx_instance_##ipc_name = CREATE_IDS_INSTANCE(0, rx_signal_type);  \
-                                                                                        \
-    static struct mbox_ids_conf tx_ids_config_##ipc_name = {                            \
-        .domain = tx_domain_id,                                                         \
-        .is_local  = true,                                                              \
-    };                                                                                  \
     static struct device tx_device_mbox_##ipc_name = {                                  \
         .name = STRINGIFY(tx_device_mbox_##ipc_name),                                   \
         .data = NULL,                                                                   \
-        .api = &ids_driver_api,                                                         \
-        .config = &tx_ids_config_##ipc_name,                                            \
     };                                                                                  \
     static struct device rx_device_mbox_##ipc_name = {                                  \
         .name = STRINGIFY(rx_device_mbox_##ipc_name),                                   \
         .data = GET_MBOX_DATA_RX(rx_signal_type),                                       \
-        .api = &ids_driver_api,                                                         \
     };                                                                                  \
     static struct device device_##ipc_name = {                                          \
         .name = STRINGIFY(ipc_name),                                                    \
