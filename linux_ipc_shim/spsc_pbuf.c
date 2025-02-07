@@ -1,3 +1,11 @@
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/errno.h>
+#include <linux/cache.h>
+#include <linux/bug.h>
+#include <linux/smp.h>
 #include "spsc_pbuf.h"
 
 #define IS_ENABLED(a) 0
@@ -16,17 +24,6 @@
                  SPSC_PBUF_UTILIZATION_OFFSET)) | \
             ((val) << SPSC_PBUF_UTILIZATION_OFFSET))
 
-/*
- * In order to allow allocation of continuous buffers (in zero copy manner) buffer
- * is handling wrapping. When it is detected that request space cannot be allocated
- * at the end of the buffer but it is available at the beginning, a padding must
- * be added. Padding is marked using 0xFF byte. Packet length is stored on 2 bytes
- * but padding marker must be byte long as it is possible that only 1 byte padding
- * is required. In order to distinguish padding marker from length field following
- * measures are taken: Length is stored in big endian (MSB byte first). Maximum
- * packet length is limited to 0XFEFF.
- */
-
 /* Helpers */
 static uint32_t idx_occupied(uint32_t len, uint32_t a, uint32_t b)
 {
@@ -38,7 +35,8 @@ static inline void cache_wb(void *data, size_t len, uint32_t flags)
 {
     if (IS_ENABLED(CONFIG_SPSC_PBUF_CACHE_ALWAYS) ||
         (IS_ENABLED(CONFIG_SPSC_PBUF_CACHE_FLAG) && (flags & SPSC_PBUF_CACHE))) {
-        sys_cache_data_flush_range(data, len);
+        // Use kernel cache flush function
+        clflush_cache_range(data, len);
     }
 }
 
@@ -46,7 +44,8 @@ static inline void cache_inv(void *data, size_t len, uint32_t flags)
 {
     if (IS_ENABLED(CONFIG_SPSC_PBUF_CACHE_ALWAYS) ||
         (IS_ENABLED(CONFIG_SPSC_PBUF_CACHE_FLAG) && (flags & SPSC_PBUF_CACHE))) {
-        sys_cache_data_invd_range(data, len);
+        // Use kernel cache invalidate function
+        clflush_cache_range(data, len);
     }
 }
 
@@ -101,7 +100,7 @@ static bool check_alignment(void *buf, uint32_t flags)
 struct spsc_pbuf *spsc_pbuf_init(void *buf, size_t blen, uint32_t flags)
 {
     if (!check_alignment(buf, flags)) {
-        __ASSERT(false, "Failed to initialize due to memory misalignment");
+        WARN_ON(1);
         return NULL;
     }
 
@@ -111,14 +110,14 @@ struct spsc_pbuf *spsc_pbuf_init(void *buf, size_t blen, uint32_t flags)
     struct spsc_pbuf *pb = buf;
     uint32_t *wr_idx_loc = get_wr_idx_loc(pb, flags);
 
-    __ASSERT_NO_MSG(blen > (sizeof(*pb) + LEN_SZ));
+    WARN_ON(blen <= (sizeof(*pb) + LEN_SZ));
 
     pb->common.len = get_len(blen, flags);
     pb->common.rd_idx = 0;
     pb->common.flags = flags;
     *wr_idx_loc = 0;
 
-    __sync_synchronize();
+    smp_mb();
     cache_wb(&pb->common, sizeof(pb->common), flags);
     cache_wb(wr_idx_loc, sizeof(*wr_idx_loc), flags);
 
@@ -142,7 +141,7 @@ int spsc_pbuf_alloc(struct spsc_pbuf *pb, uint16_t len, char **buf)
     }
 
     cache_inv(rd_idx_loc, sizeof(*rd_idx_loc), flags);
-    __sync_synchronize();
+    smp_mb();
 
     uint32_t wr_idx = *wr_idx_loc;
     uint32_t rd_idx = *rd_idx_loc;
@@ -170,7 +169,7 @@ int spsc_pbuf_alloc(struct spsc_pbuf *pb, uint16_t len, char **buf)
         } else {
             /* Padding must be added. */
             data_loc[wr_idx] = PADDING_MARK;
-            __sync_synchronize();
+            smp_mb();
             cache_wb(&data_loc[wr_idx], sizeof(uint8_t), flags);
 
             wr_idx = 0;
@@ -184,10 +183,7 @@ int spsc_pbuf_alloc(struct spsc_pbuf *pb, uint16_t len, char **buf)
         free_space = rd_idx - wr_idx - FREE_SPACE_DISTANCE;
     }
 
-    //dhsu
-    // printf("free space %d\n", free_space);
-
-    len = MIN(len, MAX(free_space - (int32_t)LEN_SZ, 0));
+    len = min(len, max(free_space - (int32_t)LEN_SZ, 0));
     *buf = (char *) &data_loc[wr_idx + LEN_SZ];
 
     return len;
@@ -207,16 +203,16 @@ void spsc_pbuf_commit(struct spsc_pbuf *pb, uint16_t len)
 
     uint32_t wr_idx = *wr_idx_loc;
 
-    sys_put_be16(len, &data_loc[wr_idx]);
-    __sync_synchronize();
+    put_unaligned_be16(len, &data_loc[wr_idx]);
+    smp_mb();
     cache_wb(&data_loc[wr_idx], len + LEN_SZ, flags);
 
     wr_idx += len + LEN_SZ;
-    wr_idx = ROUND_UP(wr_idx, sizeof(uint32_t));
+    wr_idx = ALIGN(wr_idx, sizeof(uint32_t));
     wr_idx = wr_idx == pblen ? 0 : wr_idx;
 
     *wr_idx_loc = wr_idx;
-    __sync_synchronize();
+    smp_mb();
     cache_wb(wr_idx_loc, sizeof(*wr_idx_loc), flags);
 }
 
@@ -251,7 +247,7 @@ uint16_t spsc_pbuf_claim(struct spsc_pbuf *pb, char **buf)
     uint8_t *data_loc = get_data_loc(pb, flags);
 
     cache_inv(wr_idx_loc, sizeof(*wr_idx_loc), flags);
-    __sync_synchronize();
+    smp_mb();
 
     uint32_t wr_idx = *wr_idx_loc;
     uint32_t rd_idx = *rd_idx_loc;
@@ -267,9 +263,9 @@ uint16_t spsc_pbuf_claim(struct spsc_pbuf *pb, char **buf)
      * by the consumer.
      */
     if (IS_ENABLED(CONFIG_SPSC_PBUF_UTILIZATION) && (bytes_stored > GET_UTILIZATION(flags))) {
-        __ASSERT_NO_MSG(bytes_stored <= BIT_MASK(SPSC_PBUF_UTILIZATION_BITS));
+        WARN_ON(bytes_stored > BIT_MASK(SPSC_PBUF_UTILIZATION_BITS));
         pb->common.flags = SET_UTILIZATION(flags, bytes_stored);
-        __sync_synchronize();
+        smp_mb();
         cache_wb(&pb->common.flags, sizeof(pb->common.flags), flags);
     }
 
@@ -290,7 +286,7 @@ uint16_t spsc_pbuf_claim(struct spsc_pbuf *pb, char **buf)
         }
 
         *rd_idx_loc = rd_idx = 0;
-        __sync_synchronize();
+        smp_mb();
         cache_wb(rd_idx_loc, sizeof(*rd_idx_loc), flags);
         /* After reading padding we may find out that buffer is empty. */
         if (rd_idx == wr_idx) {
@@ -300,10 +296,9 @@ uint16_t spsc_pbuf_claim(struct spsc_pbuf *pb, char **buf)
         cache_inv(&data_loc[rd_idx], sizeof(len), flags);
     }
 
-    len = sys_get_be16(&data_loc[rd_idx]);
+    len = get_unaligned_be16(&data_loc[rd_idx]);
 
-    (void)bytes_stored;
-    __ASSERT_NO_MSG(bytes_stored >= (len + LEN_SZ));
+    WARN_ON(bytes_stored < (len + LEN_SZ));
 
     cache_inv(&data_loc[rd_idx + LEN_SZ], len, flags);
     *buf = (char *) &data_loc[rd_idx + LEN_SZ];
@@ -321,7 +316,7 @@ void spsc_pbuf_free(struct spsc_pbuf *pb, uint16_t len)
     uint16_t rd_idx = *rd_idx_loc + len + LEN_SZ;
     uint8_t *data_loc = get_data_loc(pb, flags);
 
-    rd_idx = ROUND_UP(rd_idx, sizeof(uint32_t));
+    rd_idx = ALIGN(rd_idx, sizeof(uint32_t));
     cache_inv(&data_loc[rd_idx], sizeof(uint8_t), flags);
     /* Handle wrapping or the fact that next packet is a padding. */
     if (rd_idx == pblen) {
@@ -340,7 +335,7 @@ void spsc_pbuf_free(struct spsc_pbuf *pb, uint16_t len)
     }
 
     *rd_idx_loc = rd_idx;
-    __sync_synchronize();
+    smp_mb();
     cache_wb(rd_idx_loc, sizeof(*rd_idx_loc), flags);
 }
 
@@ -375,7 +370,7 @@ int spsc_pbuf_get_utilization(struct spsc_pbuf *pb)
     }
 
     cache_inv(&pb->common.flags, sizeof(pb->common.flags), pb->common.flags);
-    __sync_synchronize();
+    smp_mb();
 
     return GET_UTILIZATION(pb->common.flags);
 }
