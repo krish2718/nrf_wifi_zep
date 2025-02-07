@@ -2,7 +2,6 @@
 #define IPC_SERVICE_ICMSG_H
 
 #include "ipc_service.h"
-#include "mbox.h"
 #include <linux/kernel.h>
 #include <linux/semaphore.h>
 #include <linux/timer.h>

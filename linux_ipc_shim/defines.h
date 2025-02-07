@@ -67,11 +67,7 @@
 extern const struct ipc_service_backend backend_ops;
 
 struct ipc_device_wrapper {
-    struct device *tx_device_mbox;
-    struct device *rx_device_mbox;
     struct device *ipc;
-    uint8_t signal_type;
-    nrfx_ids_t *rx_instance;
 };
 
 #define DEFINE_BACKEND_DATA(name) static struct icmsg_data_t name
@@ -98,28 +94,14 @@ struct ipc_device_wrapper {
     ASSERT_NOT_CONST(backend_cfg);                                                      \
                                                                                         \
     DEFINE_BACKEND_DATA(backend_data_##ipc_name);                                       \
-                                                                                        \
-    static struct device tx_device_mbox_##ipc_name = {                                  \
-        .name = STRINGIFY(tx_device_mbox_##ipc_name),                                   \
-        .data = NULL,                                                                   \
-    };                                                                                  \
-    static struct device rx_device_mbox_##ipc_name = {                                  \
-        .name = STRINGIFY(rx_device_mbox_##ipc_name),                                   \
-        .data = GET_MBOX_DATA_RX(rx_signal_type),                                       \
-    };                                                                                  \
+                                                                                        \                                                                               \
     static struct device device_##ipc_name = {                                          \
         .name = STRINGIFY(ipc_name),                                                    \
         .data = &backend_data_##ipc_name,                                               \
         .config = &backend_cfg,                                                         \
         .api = &backend_ops,                                                            \
     };                                                                                  \
-    const struct ipc_device_wrapper ipc_name = {                                        \
-        .tx_device_mbox = &tx_device_mbox_##ipc_name,                                   \
-        .rx_device_mbox = &rx_device_mbox_##ipc_name,                                   \
-        .ipc = &device_##ipc_name,                                                      \
-        .signal_type = rx_signal_type,                                                  \
-        .rx_instance = &rx_instance_##ipc_name                                          \
-    };
+
 
 struct device *getIpcInstance(const struct ipc_device_wrapper *ipc_dev);
 

@@ -144,7 +144,6 @@ ifeq ($(IPC), 1)
 	# Linux shim
 	SRCS += bus_if/bus/ipc/src/ipc_service.c
 	SRCS += linux_ipc_shim/icmsg.c
-	SRCS += linux_ipc_shim/bellboard.c
 	SRCS += linux_ipc_shim/ipc_icmsg.c
 	SRCS += linux_ipc_shim/spsc_pbuf.c
 endif

@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/semaphore.h>
 #include <linux/timer.h>
+#include <linux/atomic.h>
 
 #include "spsc_pbuf.h"
 
@@ -39,32 +40,9 @@ static int mbox_init(const struct icmsg_config_t *conf, struct icmsg_data_t *dev
 
 static bool is_rx_buffer_held(struct icmsg_data_t *dev_data);
 
-static void atomic_init(struct icmsg_state_t *obj)
-{
-    sema_init(&obj->lock, 1);
-}
-
-static void atomic_store(struct icmsg_state_t *obj, int desired)
-{
-    down_interruptible(&obj->lock);
-    obj->value = desired;
-    up(&obj->lock);
-}
-
-static int atomic_load(struct icmsg_state_t *obj)
-{
-    down_interruptible(&obj->lock);
-    int result = obj->value;
-    up(&obj->lock);
-    return result;
-}
-
-static void submit_work_if_buffer_free_and_data_available(
-        struct icmsg_data_t *dev_data);
-
 static bool is_endpoint_ready(struct icmsg_data_t *dev_data)
 {
-    return atomic_load(&dev_data->state) == ICMSG_STATE_READY;
+    return atomic_read(&dev_data->state) == ICMSG_STATE_READY;
 }
 
 static void notify_process(struct timer_list *timer)
@@ -74,7 +52,7 @@ static void notify_process(struct timer_list *timer)
 
     mbox_send(&dev_data->cfg->mbox_tx, NULL);
 
-    int state = atomic_load(&dev_data->state);
+    int state = atomic_read(&dev_data->state);
 
     if (state != ICMSG_STATE_READY)
     {
@@ -88,7 +66,7 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
     char *rx_buffer;
 
     BUG_ON(dev_data);
-    int state = atomic_load(&dev_data->state);
+    int state = atomic_read(&dev_data->state);
 
     uint16_t len = spsc_pbuf_claim(dev_data->rx_ib, &rx_buffer);
 
@@ -132,7 +110,7 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
             dev_data->cb->bound(dev_data->ctx);
         }
 
-        atomic_store(&dev_data->state, ICMSG_STATE_READY);
+        atomic_set(&dev_data->state, ICMSG_STATE_READY);
     }
 
     submit_work_if_buffer_free_and_data_available(dev_data);
@@ -142,9 +120,9 @@ static int reserve_tx_buffer_if_unused(struct icmsg_data_t *dev_data)
 {
     bool was_unused;
 
-    if (atomic_load(&dev_data->tx_buffer_state) == TX_BUFFER_STATE_UNUSED)
+    if (atomic_read(&dev_data->tx_buffer_state) == TX_BUFFER_STATE_UNUSED)
     {
-        atomic_store(&dev_data->tx_buffer_state, TX_BUFFER_STATE_RESERVED);
+        atomic_set(&dev_data->tx_buffer_state, TX_BUFFER_STATE_RESERVED);
         was_unused = true;
     }
     else
@@ -159,9 +137,9 @@ static int release_tx_buffer(struct icmsg_data_t *dev_data)
 {
     bool was_reserved;
 
-    if (atomic_load(&dev_data->tx_buffer_state) == TX_BUFFER_STATE_RESERVED)
+    if (atomic_read(&dev_data->tx_buffer_state) == TX_BUFFER_STATE_RESERVED)
     {
-        atomic_store(&dev_data->tx_buffer_state, TX_BUFFER_STATE_UNUSED);
+        atomic_set(&dev_data->tx_buffer_state, TX_BUFFER_STATE_UNUSED);
         was_reserved = true;
     }
     else
@@ -234,14 +212,13 @@ static void mbox_callback(const struct device *instance, uint32_t channel, void 
 
 static int mbox_init(const struct icmsg_config_t *conf, struct icmsg_data_t *dev_data)
 {
-    int err = mbox_register_callback(&conf->mbox_rx, mbox_callback, dev_data);
+    // TODO
+}
 
-    if (err != 0)
-    {
-        return err;
-    }
 
-    return mbox_set_enabled(&conf->mbox_rx, 1);
+static int mbox_send(const struct mbox_channel *channel, void *data)
+{
+    // TODO
 }
 
 int icmsg_open(const struct icmsg_config_t *conf,
@@ -251,12 +228,12 @@ int icmsg_open(const struct icmsg_config_t *conf,
     int ret;
 
     /* Initialise atomic states */
-    atomic_init(&dev_data->tx_buffer_state);
-    atomic_init(&dev_data->state);
+    atomic_set(&dev_data->tx_buffer_state, TX_BUFFER_STATE_UNUSED);
+    atomic_set(&dev_data->state, ICMSG_STATE_OFF);
 
-    if (atomic_load(&dev_data->state) == ICMSG_STATE_OFF)
+    if (atomic_read(&dev_data->state) == ICMSG_STATE_OFF)
     {
-        atomic_store(&dev_data->state, ICMSG_STATE_BUSY);
+        atomic_set(&dev_data->state, ICMSG_STATE_BUSY);
     }
     else
     {

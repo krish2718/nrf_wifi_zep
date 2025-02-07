@@ -37,7 +37,7 @@ struct rpu_dev {
 
 struct rpu_dev *rpu_dev(void);
 
-int ipc_init();
+int ipc_init(void);
 int ipc_deinit(void);
 int ipc_send(ipc_ctx_t ctx, const void *data, int len);
 // Blocking Receive
