@@ -205,6 +205,52 @@ out:
 	return status;
 }
 
+static enum nrf_wifi_status umac_event_sys_scan_dbg_stats_process(
+	struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
+	void *event)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_umac_scan_dbg_stats *scan_dbg_stats = NULL;
+	unsigned char *raw_data = NULL;
+	size_t data_len = 0;
+	size_t i, j;
+
+	if (!event) {
+		nrf_wifi_osal_log_err("%s: Invalid parameters", __func__);
+		goto out;
+	}
+
+	scan_dbg_stats = (struct nrf_wifi_umac_scan_dbg_stats *)event;
+	raw_data = (unsigned char *)scan_dbg_stats;
+	data_len = sizeof(*scan_dbg_stats);
+
+	nrf_wifi_osal_log_info("Scan debug stats received (int hexdump):\n");
+
+	/* Print integers in hex format, handling unaligned access */
+	for (i = 0; i < data_len; i += 16) {
+		/* Print offset */
+		nrf_wifi_osal_log_info("%04x: ", (unsigned int)i);
+		
+		/* Print 4 integers per line, reading byte by byte to avoid alignment issues */
+		for (j = 0; j < 4; j++) {
+			if (i + j * 4 + 3 < data_len) {
+				unsigned int val = (unsigned int)raw_data[i + j * 4] |
+						((unsigned int)raw_data[i + j * 4 + 1] << 8) |
+						((unsigned int)raw_data[i + j * 4 + 2] << 16) |
+						((unsigned int)raw_data[i + j * 4 + 3] << 24);
+				nrf_wifi_osal_log_info("%08x ", val);
+			} else {
+				nrf_wifi_osal_log_info("         ");
+			}
+		}
+		nrf_wifi_osal_log_info("\n");
+	}
+
+	status = NRF_WIFI_STATUS_SUCCESS;
+
+out:
+	return status;
+}
 
 static enum nrf_wifi_status umac_event_sys_proc_events(struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
 						       struct host_rpu_msg *rpu_msg)
@@ -234,6 +280,10 @@ static enum nrf_wifi_status umac_event_sys_proc_events(struct nrf_wifi_fmac_dev_
 	case NRF_WIFI_EVENT_DEINIT_DONE:
 		fmac_dev_ctx->fw_deinit_done = 1;
 		status = NRF_WIFI_STATUS_SUCCESS;
+		break;
+	case NRF_WIFI_EVENT_SCAN_DBG_STATS:
+		status = umac_event_sys_scan_dbg_stats_process(fmac_dev_ctx,
+							      sys_head);
 		break;
 #ifdef NRF70_RAW_DATA_TX
 	case NRF_WIFI_EVENT_RAW_TX_DONE:

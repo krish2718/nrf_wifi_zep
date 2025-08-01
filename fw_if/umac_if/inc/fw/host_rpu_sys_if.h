@@ -204,6 +204,8 @@ enum nrf_wifi_sys_events {
 	NRF_WIFI_EVENT_RAW_TX_DONE,
 	/** Command status events for offloaded raw tx commands */
 	NRF_WIFI_EVENT_OFFLOADED_RAWTX_STATUS,
+	/** SCAN dbg stats event from LMAC */
+	NRF_WIFI_EVENT_SCAN_DBG_STATS,
 };
 
 /**
@@ -1659,6 +1661,13 @@ struct nrf_wifi_sys_umac_event_stats {
 	struct nrf_wifi_sys_head sys_head;
 	/** All the statistics that the firmware can provide @ref rpu_fw_stats*/
 	struct rpu_sys_fw_stats fw;
+} __NRF_WIFI_PKD;
+
+struct nrf_wifi_umac_scan_dbg_stats {
+	/** UMAC header, @ref nrf_wifi_sys_head */
+	struct nrf_wifi_sys_head sys_head;
+	/** scan dbg data */
+	unsigned int dbg_data[128];
 } __NRF_WIFI_PKD;
 
 
