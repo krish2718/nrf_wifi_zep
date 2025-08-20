@@ -769,6 +769,38 @@ void nrf_wifi_hal_dev_deinit(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 }
 
 
+/**
+ * @brief Dump the values of key RPU debug registers.
+ *
+ * This function reads and logs the values of registers 0xA401BC00UL and 0xA401BC14UL,
+ * which are useful for debugging interrupt and RPU state.
+ *
+ * @param hal_dev_ctx Pointer to the HAL device context.
+ */
+static void nrf_wifi_hal_dump_debug_regs(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	unsigned int reg_val = 0;
+
+	status = hal_rpu_reg_read(hal_dev_ctx, &reg_val, 0xA401BC00UL);
+	if (status == NRF_WIFI_STATUS_SUCCESS) {
+		nrf_wifi_osal_log_info("Register 0xA401BC00: 0x%08X", reg_val);
+	} else {
+		nrf_wifi_osal_log_err("%s: Failed to read reg 0xA401BC00", __func__);
+	}
+
+	status = hal_rpu_reg_read(hal_dev_ctx, &reg_val, 0xA401BC14UL);
+	if (status == NRF_WIFI_STATUS_SUCCESS) {
+		nrf_wifi_osal_log_info("Register 0xA401BC14: 0x%08X", reg_val);
+	} else {
+		nrf_wifi_osal_log_err("%s: Failed to read reg 0xA401BC14", __func__);
+	}
+}
+
+
+
+
+
 enum nrf_wifi_status nrf_wifi_hal_irq_handler(void *data)
 {
 	struct nrf_wifi_hal_dev_ctx *hal_dev_ctx = NULL;
@@ -787,6 +819,7 @@ enum nrf_wifi_status nrf_wifi_hal_irq_handler(void *data)
 		goto out;
 	}
 
+	nrf_wifi_hal_dump_debug_regs(hal_dev_ctx);
 
 	status = hal_rpu_irq_process(hal_dev_ctx, &do_rpu_recovery);
 
