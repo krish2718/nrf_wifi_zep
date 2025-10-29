@@ -31,6 +31,42 @@ static void did_rpu_had_sleep_opp(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 }
 #endif /* NRF_WIFI_RPU_RECOVERY */
 
+static enum nrf_wifi_status hal_rpu_boot_sig_read(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
+	enum RPU_PROC_TYPE rpu_proc)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	enum RPU_PROC_TYPE curr_proc = hal_dev_ctx->curr_proc;
+	unsigned int addr = 0;
+	unsigned int boot_sig = 0;
+
+	if (rpu_proc == RPU_PROC_TYPE_MCU_LMAC) {
+		addr = RPU_MEM_LMAC_BOOT_SIG;
+	} else if (rpu_proc == RPU_PROC_TYPE_MCU_UMAC) {
+		addr = RPU_MEM_UMAC_BOOT_SIG;
+	}
+
+	hal_dev_ctx->curr_proc = rpu_proc;
+	status = hal_rpu_mem_read_unlocked(hal_dev_ctx,
+				 (unsigned char *)&boot_sig,
+				 addr,
+				 sizeof(boot_sig));
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		nrf_wifi_osal_log_err("%s: Reading of boot signature failed for RPU(%d)",
+			__func__,
+			rpu_proc);
+	}
+
+	nrf_wifi_osal_log_err("%s: proc(%d) boot sig = 0x%X",
+		__func__,
+		rpu_proc,
+		boot_sig);
+
+	hal_dev_ctx->curr_proc = curr_proc;
+
+	return status;
+}
+
 enum nrf_wifi_status hal_rpu_ps_wake(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 {
 	unsigned int reg_val = 0;
@@ -102,12 +138,15 @@ enum nrf_wifi_status hal_rpu_ps_wake(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 				      RPU_PS_WAKE_TIMEOUT_S,
 				      reg_val,
 				      rpu_ps_state_mask);
+		hal_rpu_boot_sig_read(hal_dev_ctx, RPU_PROC_TYPE_MCU_LMAC);
+		hal_rpu_boot_sig_read(hal_dev_ctx, RPU_PROC_TYPE_MCU_UMAC);
 #ifdef NRF_WIFI_RPU_RECOVERY
 		nrf_wifi_osal_tasklet_schedule(hal_dev_ctx->recovery_tasklet);
 #endif /* NRF_WIFI_RPU_RECOVERY */
 		goto out;
 	}
 	hal_dev_ctx->rpu_ps_state = RPU_PS_STATE_AWAKE;
+
 #ifdef NRF_WIFI_RPU_RECOVERY
 	did_rpu_had_sleep_opp(hal_dev_ctx);
 #endif /* NRF_WIFI_RPU_RECOVERY */

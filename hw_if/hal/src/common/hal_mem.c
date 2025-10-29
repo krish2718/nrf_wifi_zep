@@ -122,6 +122,34 @@ out:
 	return status;
 }
 
+static enum nrf_wifi_status rpu_mem_read_ram_unlocked(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
+					     void *src_addr,
+					     unsigned int ram_addr_val,
+					     unsigned int len)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	unsigned long addr_offset = 0;
+
+	status = pal_rpu_addr_offset_get(ram_addr_val,
+					 &addr_offset,
+					 hal_dev_ctx->curr_proc);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		nrf_wifi_osal_log_err("%s: pal_rpu_addr_offset_get failed",
+				      __func__);
+		return status;
+	}
+
+	nrf_wifi_bal_read_block(hal_dev_ctx->bal_dev_ctx,
+				src_addr,
+				addr_offset,
+				len);
+
+	status = NRF_WIFI_STATUS_SUCCESS;
+
+	return status;
+}
+
 
 static enum nrf_wifi_status rpu_mem_write_ram(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 					      unsigned int ram_addr_val,
@@ -338,6 +366,39 @@ enum nrf_wifi_status hal_rpu_mem_read(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 				  src_addr,
 				  rpu_mem_addr_val,
 				  len);
+out:
+	return status;
+}
+
+// Function to perform memory read without ps_wake
+enum nrf_wifi_status hal_rpu_mem_read_unlocked(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
+				           void *src_addr,
+				           unsigned int rpu_mem_addr_val,
+				           unsigned int len)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+
+	if (!hal_dev_ctx) {
+		goto out;
+	}
+
+	if (!src_addr) {
+		nrf_wifi_osal_log_err("%s: Invalid params",
+				      __func__);
+		goto out;
+	}
+
+	if (!hal_rpu_is_mem_readable(hal_dev_ctx->curr_proc, rpu_mem_addr_val)) {
+		nrf_wifi_osal_log_err("%s: Invalid memory address 0x%X",
+				      __func__,
+				      rpu_mem_addr_val);
+		goto out;
+	}
+
+	status = rpu_mem_read_ram_unlocked(hal_dev_ctx,
+				       src_addr,
+				       rpu_mem_addr_val,
+				       len);
 out:
 	return status;
 }

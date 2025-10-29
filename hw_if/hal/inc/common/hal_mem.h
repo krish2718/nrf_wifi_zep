@@ -58,6 +58,29 @@ enum nrf_wifi_status hal_rpu_mem_read(struct nrf_wifi_hal_dev_ctx *hal_ctx,
 									  unsigned int len);
 
 /**
+ * @brief Read from the RPU memory without ps_wake.
+ *
+ * This function reads a specified number of bytes from the RPU memory and
+ * copies them to the host memory.
+ *
+ * @param hal_ctx       Pointer to HAL context.
+ * @param host_addr     Pointer to the host memory where the contents read from
+ *                      the RPU memory are to be copied.
+ * @param rpu_mem_addr  Absolute value of the RPU memory address from which the
+ *                      contents are to be read.
+ * @param len           The length (in bytes) of the contents to be read from
+ *                      the RPU memory.
+ *
+ * @return Status
+ *         - Pass: NRF_WIFI_STATUS_SUCCESS
+ *         - Error: NRF_WIFI_STATUS_FAIL
+ */
+enum nrf_wifi_status hal_rpu_mem_read_unlocked(struct nrf_wifi_hal_dev_ctx *hal_ctx,
+				           void *host_addr,
+				           unsigned int rpu_mem_addr,
+				           unsigned int len);
+
+/**
  * @brief Write to the RPU memory.
  *
  * This function writes a specified number of bytes to the RPU memory from the
