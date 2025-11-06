@@ -96,6 +96,52 @@ out:
 	return status;
 }
 
+// Unlocked variant: does not wake or take lock
+enum nrf_wifi_status hal_rpu_reg_read_unlocked(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
+					       unsigned int *val,
+					       unsigned int rpu_reg_addr)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	unsigned long addr_offset = 0;
+
+	if (!hal_dev_ctx) {
+		return status;
+	}
+
+	if ((val == NULL) ||
+	    !hal_rpu_is_reg(rpu_reg_addr)) {
+		nrf_wifi_osal_log_err("%s: Invalid params, val = %p, rpu_reg (0x%x)",
+				      __func__,
+				      val,
+				      rpu_reg_addr);
+		return status;
+	}
+
+	status = pal_rpu_addr_offset_get(rpu_reg_addr,
+					 &addr_offset,
+					 hal_dev_ctx->curr_proc);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		nrf_wifi_osal_log_err("%s: pal_rpu_addr_offset_get failed",
+				      __func__);
+		return status;
+	}
+
+	*val = nrf_wifi_bal_read_word(hal_dev_ctx->bal_dev_ctx, addr_offset);
+
+	if (*val == 0xFFFFFFFF) {
+		nrf_wifi_osal_log_err("%s: Error !! Value read at addr_offset = %lx is = %X",
+				      __func__,
+				      addr_offset,
+				      *val);
+		status = NRF_WIFI_STATUS_FAIL;
+		return status;
+	}
+
+	status = NRF_WIFI_STATUS_SUCCESS;
+	return status;
+}
+
 enum nrf_wifi_status hal_rpu_reg_write(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 				       unsigned int rpu_reg_addr,
 				       unsigned int val)

@@ -140,6 +140,11 @@ enum nrf_wifi_status hal_rpu_ps_wake(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 				      rpu_ps_state_mask);
 		hal_rpu_boot_sig_read(hal_dev_ctx, RPU_PROC_TYPE_MCU_LMAC);
 		hal_rpu_boot_sig_read(hal_dev_ctx, RPU_PROC_TYPE_MCU_UMAC);
+		hal_rpu_reg_read_unlocked(hal_dev_ctx, &reg_val,
+			0xA4000470);
+		nrf_wifi_osal_log_err("%s: CORE ID = 0x%X",
+			__func__,
+			reg_val);
 #ifdef NRF_WIFI_RPU_RECOVERY
 		nrf_wifi_osal_tasklet_schedule(hal_dev_ctx->recovery_tasklet);
 #endif /* NRF_WIFI_RPU_RECOVERY */

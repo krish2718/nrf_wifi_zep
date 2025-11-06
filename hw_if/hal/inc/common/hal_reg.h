@@ -53,4 +53,24 @@ enum nrf_wifi_status hal_rpu_reg_read(struct nrf_wifi_hal_dev_ctx *hal_ctx,
 enum nrf_wifi_status hal_rpu_reg_write(struct nrf_wifi_hal_dev_ctx *hal_ctx,
 		unsigned int rpu_reg_addr,
 		unsigned int val);
+
+/**
+ * @brief Read from an RPU register without ps_wake.
+ *
+ * @param hal_ctx Pointer to HAL context.
+ * @param val Pointer to the host memory where the value read from the RPU register
+ *            is to be copied.
+ * @param rpu_reg_addr Absolute value of RPU register address from which the
+ *                     value is to be read.
+ *
+ * This function reads a 4 byte value from a RPU register and copies it
+ * to the host memory pointed to by the val parameter.
+ *
+ * @return Status
+ *         - Pass: NRF_WIFI_STATUS_SUCCESS
+ *         - Error: NRF_WIFI_STATUS_FAIL
+ */
+enum nrf_wifi_status hal_rpu_reg_read_unlocked(struct nrf_wifi_hal_dev_ctx *hal_ctx,
+		unsigned int *val,
+		unsigned int rpu_reg_addr);
 #endif /* __HAL_REG_H__ */
