@@ -10,7 +10,15 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm*")
 endif()
 
 set(NRF_WIFI_DIR ${ZEPHYR_NRF_WIFI_MODULE_DIR})
-
+if (DEFINED ENV{ZEPHYR_BASE})
+# Use Zephyr module
+set(NRF_WIFI_DIR ${ZEPHYR_NRF_WIFI_MODULE_DIR})
+set(NRF_WIFI_BINS_DIR ${ZEPHYR_NRFXLIB_MODULE_DIR}/nrf_wifi/bin/zephyr)
+else()
+# Use git submodule
+set(NRF_WIFI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sdk-nrfxlib/nrf_wifi)
+set(NRF_WIFI_BINS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sdk-nrfxlib/nrf_wifi/bin/zephyr)
+endif()
 # Translate the configuration to the OS agnostic code
 target_compile_definitions(
   nrf-wifi-osal
@@ -86,6 +94,7 @@ target_compile_definitions(
   NRF_WIFI_DISPLAY_SCAN_BSS_LIMIT=${CONFIG_NRF_WIFI_DISPLAY_SCAN_BSS_LIMIT}
   NRF_WIFI_RPU_MIN_TIME_TO_ENTER_SLEEP_MS=${CONFIG_NRF_WIFI_RPU_MIN_TIME_TO_ENTER_SLEEP_MS}
   WIFI_NRF70_LOG_LEVEL=${CONFIG_WIFI_NRF70_LOG_LEVEL}
+  NRF_WIFI_SYS_FW_BIN=${NRF_WIFI_BINS_DIR}/scan_only/nrf70.bin
 )
 
 target_include_directories(
@@ -154,4 +163,8 @@ if(CONFIG_NRF70_SYSTEM_MODE OR CONFIG_NRF70_SCAN_ONLY OR CONFIG_NRF70_BM_SCAN_ON
     $<$<BOOL:${CONFIG_NRF70_PROMISC_DATA_RX}>:${NRF_WIFI_DIR}/fw_if/umac_if/src/system/fmac_promisc.c>
     $<$<BOOL:${CONFIG_NRF70_AP_MODE}>:${NRF_WIFI_DIR}/fw_if/umac_if/src/system/fmac_ap.c>
   )
+
 endif()
+
+set(gen_inc_dir ${ZEPHYR_BINARY_DIR}/misc/generated)
+target_include_directories(nrf-wifi-osal PRIVATE ${gen_inc_dir})

@@ -51,26 +51,24 @@ static bool hal_rpu_is_mem_core_indirect(enum RPU_PROC_TYPE proc,
 	return ((addr_val & 0xFF000000) == RPU_MCU_CORE_INDIRECT_BASE);
 }
 
-
-static bool hal_rpu_is_mem_readable(enum RPU_PROC_TYPE proc, unsigned int addr)
-{
-	return hal_rpu_is_mem_ram(proc, addr);
-}
-
-
 static bool hal_rpu_is_mem_writable(enum RPU_PROC_TYPE proc,
-				    unsigned int addr)
+	unsigned int addr)
 {
 	if (hal_rpu_is_mem_ram(proc, addr) ||
-	    hal_rpu_is_mem_core_indirect(proc, addr) ||
-	    hal_rpu_is_mem_core_direct(proc, addr) ||
-	    hal_rpu_is_mem_bev(addr)) {
+	hal_rpu_is_mem_core_indirect(proc, addr) ||
+	hal_rpu_is_mem_core_direct(proc, addr) ||
+	hal_rpu_is_mem_bev(addr)) {
 		return true;
 	}
 
 	return false;
 }
 
+
+static bool hal_rpu_is_mem_readable(enum RPU_PROC_TYPE proc, unsigned int addr)
+{
+	return hal_rpu_is_mem_writable(proc, addr);
+}
 
 static enum nrf_wifi_status rpu_mem_read_ram(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 					     void *src_addr,
@@ -272,6 +270,67 @@ out:
 }
 
 
+static enum nrf_wifi_status rpu_mem_read_core(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
+					      unsigned int core_addr_val,
+					      void *dst_addr,
+					      unsigned int len)
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	unsigned int addr_reg = 0;
+	unsigned int data_reg = 0;
+	unsigned int addr = 0;
+	unsigned int data = 0;
+	unsigned int i = 0;
+
+	if (core_addr_val % 4 != 0) {
+		nrf_wifi_osal_log_err("%s: Address not multiple of 4 bytes",
+				      __func__);
+		goto out;
+	}
+
+	// get word offset, then set indirect base
+	addr = ((core_addr_val & RPU_ADDR_MASK_OFFSET) / 4) | RPU_MCU_CORE_INDIRECT_BASE;
+
+	addr_reg = RPU_REG_MIPS_MCU_SYS_CORE_MEM_CTRL;
+	data_reg = RPU_REG_MIPS_MCU_SYS_CORE_MEM_RDATA;
+
+	if (hal_dev_ctx->curr_proc == RPU_PROC_TYPE_MCU_UMAC) {
+		addr_reg = RPU_REG_MIPS_MCU2_SYS_CORE_MEM_CTRL;
+		data_reg = RPU_REG_MIPS_MCU2_SYS_CORE_MEM_RDATA;
+	}
+
+	for (i = 0; i < (len / sizeof(int)); i++) {
+		status = hal_rpu_reg_write_unlocked(hal_dev_ctx,
+					   addr_reg,
+					   addr);
+		if (status != NRF_WIFI_STATUS_SUCCESS) {
+			nrf_wifi_osal_log_err("%s: Writing to address reg failed",
+					      __func__);
+			goto out;
+		}
+
+		status = hal_rpu_reg_read_unlocked(hal_dev_ctx,
+					  &data,
+					  data_reg);
+		if (status != NRF_WIFI_STATUS_SUCCESS) {
+			nrf_wifi_osal_log_err("%s: Reading from data reg failed, addr=0x%X", __func__, addr);	
+			goto out;
+		}
+
+		*((unsigned int *)dst_addr + i) = data;
+		// Debug
+		if (i < 2) {
+			nrf_wifi_osal_log_err("%s: addr=0x%X, value=0x%X", __func__, addr, data);
+		}
+		addr += 1; // increment by 1 word (not 4 bytes)
+	}
+
+out:
+	return status;
+}
+
+
+
 static unsigned int rpu_get_bev_addr_remap(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 					   unsigned int bev_addr_val)
 {
@@ -362,10 +421,39 @@ enum nrf_wifi_status hal_rpu_mem_read(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx,
 		goto out;
 	}
 
-	status = rpu_mem_read_ram(hal_dev_ctx,
-				  src_addr,
-				  rpu_mem_addr_val,
-				  len);
+	if (hal_rpu_is_mem_core_indirect(hal_dev_ctx->curr_proc,
+				rpu_mem_addr_val) || (hal_rpu_is_mem_core_direct(hal_dev_ctx->curr_proc, rpu_mem_addr_val))) {
+		nrf_wifi_osal_log_info("%s: Reading core memory from RPU(%d) addr 0x%X size %d",
+				      __func__,
+				      hal_dev_ctx->curr_proc,
+				      rpu_mem_addr_val,
+				      len);
+		status = rpu_mem_read_core(hal_dev_ctx,
+					   rpu_mem_addr_val,
+					   src_addr,
+					   len);
+	} else if (hal_rpu_is_mem_core_direct(hal_dev_ctx->curr_proc, rpu_mem_addr_val) ||
+		hal_rpu_is_mem_ram(hal_dev_ctx->curr_proc, rpu_mem_addr_val)) {
+		nrf_wifi_osal_log_dbg("%s: Reading RAM memory from RPU(%d) addr 0x%X size %d",
+				      __func__,
+				      hal_dev_ctx->curr_proc,
+				      rpu_mem_addr_val,
+				      len);
+		status = rpu_mem_read_ram(hal_dev_ctx,
+					  src_addr,
+					  rpu_mem_addr_val,
+					  len);
+	} else if (hal_rpu_is_mem_bev(rpu_mem_addr_val)) {
+		nrf_wifi_osal_log_err("%s: BEV read not supported",
+				      __func__);
+		status = NRF_WIFI_STATUS_FAIL;
+	} else {
+		nrf_wifi_osal_log_err("%s: Invalid memory address 0x%X",
+				      __func__,
+				      rpu_mem_addr_val);
+		goto out;
+	}
+
 out:
 	return status;
 }
@@ -395,10 +483,29 @@ enum nrf_wifi_status hal_rpu_mem_read_unlocked(struct nrf_wifi_hal_dev_ctx *hal_
 		goto out;
 	}
 
-	status = rpu_mem_read_ram_unlocked(hal_dev_ctx,
-				       src_addr,
-				       rpu_mem_addr_val,
-				       len);
+	if (hal_rpu_is_mem_core_indirect(hal_dev_ctx->curr_proc,
+				rpu_mem_addr_val)) {
+		status = rpu_mem_read_core(hal_dev_ctx,
+					   rpu_mem_addr_val,
+					   src_addr,
+					   len);
+	} else if (hal_rpu_is_mem_core_direct(hal_dev_ctx->curr_proc, rpu_mem_addr_val) ||
+		hal_rpu_is_mem_ram(hal_dev_ctx->curr_proc, rpu_mem_addr_val)) {
+		status = rpu_mem_read_ram_unlocked(hal_dev_ctx,
+					       src_addr,
+					       rpu_mem_addr_val,
+					       len);
+	} else if (hal_rpu_is_mem_bev(rpu_mem_addr_val)) {
+		nrf_wifi_osal_log_err("%s: BEV read not supported",
+				      __func__);
+		status = NRF_WIFI_STATUS_FAIL;
+	} else {
+		nrf_wifi_osal_log_err("%s: Invalid memory address 0x%X",
+				      __func__,
+				      rpu_mem_addr_val);
+		goto out;
+	}
+
 out:
 	return status;
 }

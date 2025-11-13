@@ -186,6 +186,7 @@ struct rpu_mcu_boot_vectors {
 #define RPU_REG_MIPS_MCU_SYS_CORE_MEM_CTRL 0xA4000030
 /* The data to be written to the MCU local memory needs to be programmed to the data register */
 #define RPU_REG_MIPS_MCU_SYS_CORE_MEM_WDATA 0xA4000034
+#define RPU_REG_MIPS_MCU_SYS_CORE_MEM_RDATA 0xA4000038
 
 /* Boot exception vector registers for the LMAC MCU */
 #define RPU_REG_MIPS_MCU_BOOT_EXCP_INSTR_0 0xA4000050
@@ -198,6 +199,7 @@ struct rpu_mcu_boot_vectors {
 #define RPU_REG_MIPS_MCU2_SYS_CORE_MEM_CTRL 0xA4000130
 /* The data to be written to the MCU local memory needs to be programmed to the data register */
 #define RPU_REG_MIPS_MCU2_SYS_CORE_MEM_WDATA 0xA4000134
+#define RPU_REG_MIPS_MCU2_SYS_CORE_MEM_RDATA 0xA4000138
 /* Boot exception vector registers for the LMAC MCU */
 #define RPU_REG_MIPS_MCU2_BOOT_EXCP_INSTR_0 0xA4000150
 #define RPU_REG_MIPS_MCU2_BOOT_EXCP_INSTR_1 0xA4000154

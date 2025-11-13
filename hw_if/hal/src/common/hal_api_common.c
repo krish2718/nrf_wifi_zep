@@ -16,6 +16,46 @@
 #include "common/hal_mem.h"
 #include "common/hal_interrupt.h"
 #include "common/pal.h"
+#include "common/hal_fw_patch_loader.h"
+
+
+/* INCBIN macro Taken from https://gist.github.com/mmozeiko/ed9655cf50341553d282 */
+#define STR2(x) #x
+#define STR(x) STR2(x)
+
+#ifdef __APPLE__
+#define USTR(x) "_" STR(x)
+#else
+#define USTR(x) STR(x)
+#endif
+
+#ifdef _WIN32
+#define INCBIN_SECTION ".rdata, \"dr\""
+#elif defined __APPLE__
+#define INCBIN_SECTION "__TEXT,__const"
+#else
+#define INCBIN_SECTION ".rodata.*"
+#endif
+
+/* This aligns start address to 16 and terminates byte array with explicit 0
+ * which is not really needed, feel free to change it to whatever you want/need
+ */
+#define INCBIN(prefix, name, file) \
+	__asm__(".section " INCBIN_SECTION "\n" \
+			".global " USTR(prefix) "_" STR(name) "_start\n" \
+			".balign 16\n" \
+			USTR(prefix) "_" STR(name) "_start:\n" \
+			".incbin \"" file "\"\n" \
+			\
+			".global " STR(prefix) "_" STR(name) "_end\n" \
+			".balign 1\n" \
+			USTR(prefix) "_" STR(name) "_end:\n" \
+			".byte 0\n" \
+	); \
+	extern __attribute__((aligned(16))) const char prefix ## _ ## name ## _start[]; \
+	extern                                const char prefix ## _ ## name ## _end[];
+
+INCBIN(_bin, nrf70_bm_sys_fw_hal_patch, STR(NRF_WIFI_SYS_FW_BIN));
 
 #ifdef NRF_WIFI_LOW_POWER
 #ifdef NRF_WIFI_RPU_RECOVERY
@@ -145,6 +185,37 @@ enum nrf_wifi_status hal_rpu_ps_wake(struct nrf_wifi_hal_dev_ctx *hal_dev_ctx)
 		nrf_wifi_osal_log_err("%s: CORE ID = 0x%X",
 			__func__,
 			reg_val);
+		/* Verify patches from RPU memory (HAL-only, no FMAC dependency) */
+		{
+			const char *fw_data = _bin_nrf70_bm_sys_fw_hal_patch_start;
+			unsigned int fw_size = _bin_nrf70_bm_sys_fw_hal_patch_end - _bin_nrf70_bm_sys_fw_hal_patch_start;
+
+			if (fw_data && fw_size > 0) {
+				enum nrf_wifi_status verify_status;
+				enum RPU_PROC_TYPE procs[] = {RPU_PROC_TYPE_MCU_UMAC, RPU_PROC_TYPE_MCU_LMAC};
+				const char *proc_names[] = {"UMAC", "LMAC"};
+				int i;
+
+				nrf_wifi_osal_log_info("%s: Verifying firmware patches from RPU memory", __func__);
+				for (i = 0; i < 2; i++) {
+					verify_status = nrf_wifi_hal_fw_patch_verify_from_fw(
+						hal_dev_ctx,
+						procs[i],
+						fw_data,
+						fw_size);
+					if (verify_status != NRF_WIFI_STATUS_SUCCESS) {
+						nrf_wifi_osal_log_err("%s: %s patch verification failed",
+							__func__, proc_names[i]);
+					}
+					nrf_wifi_osal_log_info("%s: %s patch verification successful",
+						__func__, proc_names[i]);
+				}
+			} else {
+				nrf_wifi_osal_log_err("%s: Firmware binary is not accessible",
+					__func__);
+			}
+		}
+
 #ifdef NRF_WIFI_RPU_RECOVERY
 		nrf_wifi_osal_tasklet_schedule(hal_dev_ctx->recovery_tasklet);
 #endif /* NRF_WIFI_RPU_RECOVERY */
